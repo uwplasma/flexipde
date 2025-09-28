@@ -1,0 +1,60 @@
+[project]
+# Package metadata. The project name and version identify the distribution on
+# PyPI. The description and readme give users context about the library.
+name = "flexipde"
+version = "0.1.0"
+description = "Flexible high‑performance plasma physics solver in Python"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Authors and maintainers. Use the UWPlasma organisation credentials.
+authors = [
+    { name = "UWPlasma", email = "uwplasma@wisc.edu" },
+]
+
+# SPDX licence expression. Using a simple string is preferred over a table.
+license = { text = "MIT" }
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+# Run‑time dependencies. JAX, equinox and diffrax are optional extras; the
+# runtime will fallback to NumPy implementations if they are not installed.
+dependencies = [
+    "numpy",
+    "tomli; python_version < '3.11'",
+    # Optional JAX ecosystem (enabled via the 'jax' extra)
+    "jax >= 0.4.1; extra == 'jax'",
+    "equinox >= 0.10.6; extra == 'jax'",
+    "diffrax >= 0.4.1; extra == 'jax'",
+    # Optional symbolic and typing extras
+    "sympy2jax >= 0.1.0; extra == 'symbolic'",
+    "jaxtyping >= 0.2.20; extra == 'typing'",
+]
+
+[project.optional-dependencies]
+jax = ["jax", "equinox", "diffrax"]
+symbolic = ["sympy2jax"]
+typing = ["jaxtyping"]
+
+[project.scripts]
+# Install the command line interface ``flexipde``.  After installation
+# users can run ``flexipde`` from the shell instead of ``python -m
+# flexipde.run``.
+flexipde = "flexipde.run:main"
+
+[tool.setuptools]
+# Limit package discovery to the core flexipde package. Without this directive
+# setuptools will search the entire repository and may pick up temporary
+# directories (e.g. tmp, uwplasma_flexipde) which causes the build to fail.  By
+# explicitly specifying the packages we avoid accidental inclusion of
+# unintended folders.
+packages = ["flexipde"]
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"

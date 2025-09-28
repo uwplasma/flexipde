@@ -1,0 +1,19 @@
+[grid]
+domain = [[0.0, 6.283185307179586]]
+shape = [128]
+periodic = [true]
+
+[discretisation]
+scheme = "spectral"
+backend = "jax"
+
+[model]
+type = "alfven"
+B0 = [1.0]
+
+[solver]
+t0 = 0.0
+t1 = 2.0
+dt0 = 0.05
+solver = "Dopri5"
+save_every = 10
