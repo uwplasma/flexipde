@@ -41,9 +41,9 @@ testing = ["pytest", "pytest-cov", "mypy"]
 requires = ["setuptools >= 61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-# Explicitly list the packages to avoid accidental inclusion of temp folders.
-packages = ["flexipde"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["flexipde*"]
 
 [tool.setuptools.package-data]
 flexipde = ["py.typed"]
