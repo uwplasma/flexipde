@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .[testing]
+        pip install '.[testing]'
         # install optional jax CPU build for tests
         pip install jax==0.4.25 jaxlib==0.4.25
     - name: Run tests with coverage
