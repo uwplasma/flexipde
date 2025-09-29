@@ -1,55 +1,42 @@
 [project]
 name = "flexipde"
 version = "0.3.0"
-description = "Flexible high‑performance plasma physics solver in Python using JAX and NumPy"
+description = "Flexible high-performance plasma physics solver in Python using JAX and NumPy"
 readme = "README.md"
 requires-python = ">=3.10"
-
-# Authors and maintainers
-authors = [
-  { name = "UWPlasma", email = "uwplasma@wisc.edu" },
-]
-maintainers = [
-  { name = "UWPlasma", email = "uwplasma@wisc.edu" },
-]
+authors = [{ name = "UWPlasma", email = "uwplasma@wisc.edu" }]
+maintainers = [{ name = "UWPlasma", email = "uwplasma@wisc.edu" }]
 
 license = "MIT"
 
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
-  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: Scientific/Engineering :: Physics"
 ]
 
-# Core dependencies: NumPy and tomllib
-dependencies = [
-  "numpy",
-  "tomli; python_version < '3.11'",
-]
+dependencies = ["numpy", "tomli; python_version < '3.11'"]
 
 [project.optional-dependencies]
-# JAX and friends for acceleration and differentiability
 jax = ["jax", "equinox", "diffrax", "optax", "jaxtyping"]
 symbolic = ["sympy2jax"]
 docs = ["mkdocs-material", "mkdocstrings-python"]
 testing = ["pytest", "pytest-cov", "mypy"]
 
 [build-system]
+# keep either this (latest) or pin <77 as discussed earlier
 requires = ["setuptools>=77", "packaging>=24.2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-# Explicitly list the packages to avoid accidental inclusion of temp folders.
 packages = ["flexipde"]
 
 [tool.setuptools.package-data]
 flexipde = ["py.typed"]
 
-# Mypy configuration: ignore missing import stubs and exclude examples from strict checking
 [tool.mypy]
 ignore_missing_imports = true
 exclude = ["examples/*"]
