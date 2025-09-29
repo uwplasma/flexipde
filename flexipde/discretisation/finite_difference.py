@@ -1,160 +1,125 @@
+# mypy: ignore-errors
+"""Finite difference discretisation.
+
+This module implements simple central finite difference stencils for
+derivatives on structured grids.  It supports both periodic and
+non‑periodic boundaries.  For non‑periodic dimensions, a one‑sided
+difference is used at the boundaries.
 """
-Finite difference differentiation.
-
-This module implements simple finite difference stencils on uniform
-grids.  It supports periodic and non‑periodic boundaries.  The
-finite difference method is second‑order accurate by default; higher
-order schemes may be added in the future.
-
-This differentiator is suitable for problems with arbitrary boundary
-conditions, in contrast to the spectral method which assumes
-periodicity.  For example, diffusion equations with fixed
-temperature at the boundaries or plasma transport in a bounded domain
-can be solved using finite differences.
-
-The design is inspired by the modularity of BOUT++, which allows a
-variety of numerical methods to be swapped at runtime【501252340464299†L24-L33】.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, Any
+from typing import Any, List, Sequence
 
 import numpy as _np
 
 try:
-    import jax
-    import jax.numpy as jnp
-    _HAS_JAX = True
-except ImportError:
-    jax = None  # type: ignore
-    jnp = None  # type: ignore
-    _HAS_JAX = False
+    import jax.numpy as _jnp  # type: ignore[attr-defined]
+    _JAX_AVAILABLE = True
+except Exception:
+    _jnp = None
+    _JAX_AVAILABLE = False
 
-from .base import BaseDifferentiator
+from ..grid import Grid
 
 
 @dataclass
-class FiniteDifference(BaseDifferentiator):
-    """Finite difference differentiator.
+class FiniteDifference:
+    """Finite difference derivative operator.
 
     Parameters
     ----------
-    grid : :class:`~flexipde.grid.Grid`
-        The grid on which differentiation will be performed.  Spacing must
-        be uniform within each dimension.
-    order : int, optional
-        The order of the finite difference scheme.  Currently only
-        ``2`` (second order) is supported.
-    backend : str, optional
-        Either ``"jax"`` or ``"numpy"``.  If JAX is unavailable, the
-        numpy backend is used.
+    grid:
+        The spatial grid.
+    backend:
+        Either ``"numpy"`` or ``"jax"``.  If JAX is requested but not
+        available, NumPy will be used instead.
     """
 
-    grid: Any
-    order: int = 2
-    backend: str | None = None
+    grid: Grid
+    backend: str = "numpy"
 
     def __post_init__(self) -> None:
-        if self.order != 2:
-            raise NotImplementedError("Only second‑order finite differences are supported for now")
-        if self.backend is None:
-            self.backend = "jax" if _HAS_JAX else "numpy"
-        if self.backend == "jax" and not _HAS_JAX:
-            raise RuntimeError("JAX backend requested but JAX is not available")
-        # Convert grid to requested backend
-        if self.backend == "jax":
-            self.grid = self.grid.to_jax()
-        # Precompute spacings as arrays (could be scalar or array depending on coordinate spacing)
-        self._dx = []
-        # grid.spacing returns tuple of arrays representing spacing at first interval; treat as constant
-        for d in self.grid.spacing():
-            # spacing may be a scalar or array; convert to float
-            if _np.isscalar(d):
-                self._dx.append(d)
-            else:
-                # take mean value
-                self._dx.append(float(_np.asarray(d).mean()))
+        if self.backend == "jax" and _JAX_AVAILABLE:
+            self._xp = _jnp
+        else:
+            self._xp = _np
+        # Precompute spacings
+        self._dx = self.grid.spacing()
 
-    def _roll(self, u: Any, shift: int, axis: int) -> Any:
-        if self.backend == "jax":
-            return jnp.roll(u, shift, axis)
-        return _np.roll(u, shift, axis)
-
-    def grad(self, u: Any, axis: int) -> Any:
-        """Compute ∂u/∂x_axis using second‑order finite differences."""
-        dx = self._dx[axis]
-        # central difference for interior points
-        forward = self._roll(u, -1, axis)
-        backward = self._roll(u, 1, axis)
-        deriv = (forward - backward) / (2.0 * dx)
-        # fix boundaries for non‑periodic dimensions
-        if not self.grid.periodic[axis]:
-            # first point: forward difference
-            slicer = [slice(None)] * u.ndim
-            slicer[axis] = 0
-            leading = u[tuple(slicer)]
-            slicer[axis] = 1
-            nextp = u[tuple(slicer)]
-            deriv = deriv.copy() if self.backend == "numpy" else deriv.at[slicer].set((nextp - leading) / dx)
-            # last point: backward difference
-            slicer[axis] = -1
-            trailing = u[tuple(slicer)]
-            slicer[axis] = -2
-            prevp = u[tuple(slicer)]
-            last_idx = [-1]  # placeholder to update last index along axis
-            # Build tuple to index
-            idx = [slice(None)] * u.ndim
-            idx[axis] = -1
-            if self.backend == "numpy":
-                deriv[tuple(idx)] = (trailing - prevp) / dx
+    def grad(self, u: Any) -> List[Any]:
+        xp = self._xp
+        grads = []
+        for axis, (dx, per) in enumerate(zip(self._dx, self.grid.periodic)):
+            # roll for periodic; otherwise compute one‑sided at boundaries
+            if per:
+                forward = xp.roll(u, -1, axis=axis)
+                backward = xp.roll(u, 1, axis=axis)
+                du = (forward - backward) / (2.0 * dx)
             else:
-                deriv = deriv.at[tuple(idx)].set((trailing - prevp) / dx)
-        return deriv
+                forward = xp.roll(u, -1, axis=axis)
+                backward = xp.roll(u, 1, axis=axis)
+                du = (forward - backward) / (2.0 * dx)
+                # correct boundaries using one‑sided difference
+                # forward difference at first point
+                slicer = [slice(None)] * u.ndim
+                slicer[axis] = 0
+                idx = tuple(slicer)
+                slicer2 = slicer.copy()
+                slicer2[axis] = 1
+                idx2 = tuple(slicer2)
+                du = du.copy()
+                du[idx] = (u[idx2] - u[idx]) / dx
+                # backward difference at last point
+                slicer[axis] = -1
+                idx = tuple(slicer)
+                slicer2[axis] = -2
+                idx2 = tuple(slicer2)
+                du[idx] = (u[idx] - u[idx2]) / dx
+            grads.append(du)
+        return grads
 
     def divergence(self, vec: Sequence[Any]) -> Any:
-        if len(vec) != self.grid.dim:
-            raise ValueError(f"Expected {self.grid.dim} components, got {len(vec)}")
-        res = None
+        xp = self._xp
+        if len(vec) != self.grid.ndim:
+            raise ValueError("vector field must have one component per dimension")
+        result = xp.zeros_like(vec[0])
         for axis, comp in enumerate(vec):
-            dcomp = self.grad(comp, axis)
-            res = dcomp if res is None else res + dcomp
-        return res
+            dcomp = self.grad(comp)[axis]
+            result = result + dcomp
+        return result
 
     def laplacian(self, u: Any) -> Any:
-        result = None
-        for axis in range(self.grid.dim):
-            dx = self._dx[axis]
-            forward = self._roll(u, -1, axis)
-            backward = self._roll(u, 1, axis)
-            second = (forward - 2.0 * u + backward) / (dx * dx)
-            if not self.grid.periodic[axis]:
-                # forward/backward difference at boundaries
-                # first point: second derivative using two forward points
-                slicer0 = [slice(None)] * u.ndim
-                slicer0[axis] = 0
-                u0 = u[tuple(slicer0)]
-                slicer1 = slicer0.copy(); slicer1[axis] = 1
-                u1 = u[tuple(slicer1)]
-                slicer2 = slicer0.copy(); slicer2[axis] = 2
-                u2 = u[tuple(slicer2)] if u.shape[axis] > 2 else u1
-                if self.backend == "numpy":
-                    second[tuple(slicer0)] = (u2 - 2*u1 + u0) / (dx * dx)
-                else:
-                    second = second.at[tuple(slicer0)].set((u2 - 2*u1 + u0) / (dx*dx))
-                # last point: two backward points
-                slicer_end = [slice(None)] * u.ndim
-                slicer_end[axis] = -1
-                un1 = u[tuple(slicer_end)]
-                slicer3 = slicer_end.copy(); slicer3[axis] = -2
-                un2 = u[tuple(slicer3)]
-                slicer4 = slicer_end.copy(); slicer4[axis] = -3 if u.shape[axis] > 2 else -2
-                un3 = u[tuple(slicer4)] if u.shape[axis] > 2 else un2
-                idx_last = [slice(None)] * u.ndim; idx_last[axis] = -1
-                if self.backend == "numpy":
-                    second[tuple(idx_last)] = (un3 - 2*un2 + un1) / (dx*dx)
-                else:
-                    second = second.at[tuple(idx_last)].set((un3 - 2*un2 + un1) / (dx*dx))
-            result = second if result is None else result + second
-        return result
+        xp = self._xp
+        lap = xp.zeros_like(u)
+        for axis, (dx, per) in enumerate(zip(self._dx, self.grid.periodic)):
+            if per:
+                forward = xp.roll(u, -1, axis=axis)
+                backward = xp.roll(u, 1, axis=axis)
+                lap = lap + (forward - 2.0 * u + backward) / (dx * dx)
+            else:
+                forward = xp.roll(u, -1, axis=axis)
+                backward = xp.roll(u, 1, axis=axis)
+                lap_axis = (forward - 2.0 * u + backward) / (dx * dx)
+                # correct boundaries with one‑sided second derivative
+                sl0 = [slice(None)] * u.ndim
+                sl0[axis] = 0
+                idx0 = tuple(sl0)
+                sl1 = sl0.copy()
+                sl1[axis] = 1
+                idx1 = tuple(sl1)
+                sl2 = sl0.copy()
+                sl2[axis] = 2 if u.shape[axis] > 2 else 1
+                idx2 = tuple(sl2)
+                lap_axis = lap_axis.copy()
+                lap_axis[idx0] = (u[idx2] - 2.0 * u[idx1] + u[idx0]) / (dx * dx)
+                # last point
+                sl0[axis] = -1
+                idx0 = tuple(sl0)
+                sl1[axis] = -2
+                idx1 = tuple(sl1)
+                sl2[axis] = -3 if u.shape[axis] > 2 else -2
+                idx2 = tuple(sl2)
+                lap_axis[idx0] = (u[idx0] - 2.0 * u[idx1] + u[idx2]) / (dx * dx)
+                lap = lap + lap_axis
+        return lap

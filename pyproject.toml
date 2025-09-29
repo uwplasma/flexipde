@@ -1,60 +1,53 @@
 [project]
-# Package metadata. The project name and version identify the distribution on
-# PyPI. The description and readme give users context about the library.
 name = "flexipde"
-version = "0.1.0"
-description = "Flexible high‑performance plasma physics solver in Python"
+version = "0.3.0"
+description = "Flexible high‑performance plasma physics solver in Python using JAX and NumPy"
 readme = "README.md"
 requires-python = ">=3.10"
 
-# Authors and maintainers. Use the UWPlasma organisation credentials.
+# Authors and maintainers
 authors = [
-    { name = "UWPlasma", email = "uwplasma@wisc.edu" },
+  { name = "UWPlasma", email = "uwplasma@wisc.edu" },
+]
+maintainers = [
+  { name = "UWPlasma", email = "uwplasma@wisc.edu" },
 ]
 
-# SPDX licence expression. Using a simple string is preferred over a table.
 license = { text = "MIT" }
 
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Physics",
 ]
 
-# Run‑time dependencies. JAX, equinox and diffrax are optional extras; the
-# runtime will fallback to NumPy implementations if they are not installed.
+# Core dependencies: NumPy and tomllib
 dependencies = [
-    "numpy",
-    "tomli; python_version < '3.11'",
-    # Optional JAX ecosystem (enabled via the 'jax' extra)
-    "jax >= 0.4.1; extra == 'jax'",
-    "equinox >= 0.10.6; extra == 'jax'",
-    "diffrax >= 0.4.1; extra == 'jax'",
-    # Optional symbolic and typing extras
-    "sympy2jax >= 0.1.0; extra == 'symbolic'",
-    "jaxtyping >= 0.2.20; extra == 'typing'",
+  "numpy",
+  "tomli; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
-jax = ["jax", "equinox", "diffrax"]
+# JAX and friends for acceleration and differentiability
+jax = ["jax", "equinox", "diffrax", "optax", "jaxtyping"]
 symbolic = ["sympy2jax"]
-typing = ["jaxtyping"]
-
-[project.scripts]
-# Install the command line interface ``flexipde``.  After installation
-# users can run ``flexipde`` from the shell instead of ``python -m
-# flexipde.run``.
-flexipde = "flexipde.run:main"
-
-[tool.setuptools]
-# Limit package discovery to the core flexipde package. Without this directive
-# setuptools will search the entire repository and may pick up temporary
-# directories (e.g. tmp, uwplasma_flexipde) which causes the build to fail.  By
-# explicitly specifying the packages we avoid accidental inclusion of
-# unintended folders.
-packages = ["flexipde"]
+docs = ["mkdocs-material", "mkdocstrings-python"]
+testing = ["pytest", "pytest-cov", "mypy"]
 
 [build-system]
 requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
+
+
+# setuptools configuration: explicitly list the packages and package data. We no longer use
+# setuptools.packages.find since the flexipde package is at the top level.
+[tool.setuptools]
+packages = ["flexipde"]
+package-data = {"flexipde" = ["py.typed"]}
+
+[project.scripts]
+flexipde = "flexipde.run:main"

@@ -1,0 +1,19 @@
+[grid]
+# One‑dimensional periodic domain for the Vlasov two‑stream instability
+domain = [(0.0, 6.283185307179586)]
+shape = [32]
+periodic = [true]
+
+[discretisation]
+type = "spectral"
+backend = "numpy"
+
+[model]
+type = "vlasov"
+# Number of velocity grid points and velocity domain
+nv = 64
+v_min = -5.0
+v_max = 5.0
+
+[initial_conditions]
+f = { amplitude = 0.05, drift_velocity = 1.0, thermal_velocity = 1.0, background_density = 1.0 }

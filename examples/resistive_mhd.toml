@@ -1,0 +1,23 @@
+[grid]
+domain = [[0.0, 6.283185307179586]]
+shape = [64]
+periodic = [true]
+
+[discretisation]
+type = "spectral"
+backend = "numpy"
+
+[model]
+type = "resistive_mhd"
+[model.parameters]
+eta = 0.1
+
+[simulation]
+t0 = 0.0
+t1 = 1.0
+dt0 = 0.01
+save_every = 10
+
+[initial_conditions]
+v = { type = "sinusoidal", amplitude = 1.0, wavevector = [2], phase = 0.0 }
+B = { type = "sinusoidal", amplitude = 1.0, wavevector = [2], phase = 0.0 }

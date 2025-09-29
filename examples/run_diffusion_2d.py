@@ -1,61 +1,38 @@
-"""Two‑dimensional diffusion with Dirichlet boundary conditions.
+"""Example: 2D diffusion on a square domain.
 
-This script solves the diffusion equation on a unit square using
-non‑periodic boundaries.  Dirichlet boundary conditions (fixed zero
-value) are applied on all edges.  A Gaussian hot spot is initialised
-at the centre and allowed to diffuse.  The script prints a summary
-of the final state and displays a colour map of the initial and final
-temperature fields.
-
-Run this script with::
-
-    python examples/run_diffusion_2d.py
-
+This script runs a two–dimensional diffusion equation with Dirichlet
+boundaries on a unit square.  The finite–difference discretisation is used.
 """
-
 from __future__ import annotations
 
-import numpy as np
 import matplotlib.pyplot as plt
-from typing import Any, Sequence
+import numpy as np
 
 from flexipde.grid import Grid
 from flexipde.discretisation import FiniteDifference
-from flexipde.models.diffusion import Diffusion
-from flexipde.models.base import FieldBC
+from flexipde.models import Diffusion
 from flexipde.solver import Simulation
 
 
 def main() -> None:
-    # 2D domain [0,1]×[0,1] with 64×64 points and non‑periodic boundaries
-    grid = Grid.regular([(0.0, 1.0), (0.0, 1.0)], [64, 64], periodic=[False, False])
+    grid = Grid.regular([(0.0, 1.0), (0.0, 1.0)], [32, 32], [False, False])
     diff = FiniteDifference(grid, backend="numpy")
-    # Gaussian initial condition centred at (0.5, 0.5)
-    def init_gauss(coords: Sequence[Any]) -> np.ndarray:
-        x, y = coords
-        sigma = 0.1
-        return np.exp(-(((x - 0.5) ** 2 + (y - 0.5) ** 2) / (2.0 * sigma ** 2)))
-    model = Diffusion(grid, diff, diffusivity=0.05, init_u=init_gauss)
-    # Apply Dirichlet boundary conditions (u=0 at edges)
-    model.field_bcs["u"] = FieldBC("dirichlet", value=0.0)
-    # Run simulation for a short time
-    # Use a smaller time step for stability of the explicit Euler solver
-    sim = Simulation(model, t0=0.0, t1=0.1, dt0=0.0001, save_every=20)
-    times, states = sim.run()
-    u0 = states[0]["u"]
-    uf = states[-1]["u"]
-    print(
-        f"Completed 2D diffusion: t = {times[-1]:.3f}, min u = {uf.min():.4f}, max u = {uf.max():.4f}",
-    )
-    # Plot initial and final states
-    fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(10, 4))
-    im0 = ax0.imshow(u0, extent=(0, 1, 0, 1), origin="lower")
-    ax0.set_title("Initial")
-    fig.colorbar(im0, ax=ax0)
-    im1 = ax1.imshow(uf, extent=(0, 1, 0, 1), origin="lower")
-    ax1.set_title("Final")
-    fig.colorbar(im1, ax=ax1)
-    fig.suptitle("2D Diffusion with Dirichlet BCs")
+    model = Diffusion(grid, diff, diffusivity=0.1)
+    ic = {"u": {"type": "constant", "value": 1.0}}
+    sim = Simulation(model, t0=0.0, t1=0.5, dt0=0.01, save_every=10, initial_state_params=ic)
+    result = sim.run()
+    u0 = result.states[0]["u"]
+    u_end = result.states[-1]["u"]
+    x = grid.coords[0]
+    y = grid.coords[1]
+    X, Y = np.meshgrid(x, y, indexing='ij')
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    im0 = axes[0].imshow(u0.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), aspect='auto')
+    fig.colorbar(im0, ax=axes[0])
+    axes[0].set_title("Initial u")
+    im1 = axes[1].imshow(u_end.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), aspect='auto')
+    fig.colorbar(im1, ax=axes[1])
+    axes[1].set_title("Final u")
     plt.tight_layout()
     plt.show()
 

@@ -1,0 +1,16 @@
+[grid]
+# Three‑dimensional periodic cube
+domain = [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]
+shape = [16, 16, 16]
+periodic = [true, true, true]
+
+[discretisation]
+type = "finite_difference"
+backend = "numpy"
+
+[model]
+type = "diffusion"
+diffusivity = 0.05
+
+[initial_conditions]
+u = { type = "constant", value = 1.0 }

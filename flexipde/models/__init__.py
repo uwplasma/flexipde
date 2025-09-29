@@ -1,28 +1,29 @@
-"""
-PDE model implementations available in :mod:`flexipde`.
+"""Predefined PDE models.
 
-This package exposes a collection of models representing a variety of
-partial differential equations and dynamical systems.  Users can
-import these directly from :mod:`flexipde.models` for convenience:
+The models subpackage contains classes that define the right‑hand side of
+partial differential equations.  Each model subclasses
+:class:`~flexipde.models.base.PDEModel` and specifies the set of fields,
+parameters and the function that computes time derivatives.
 
-.. code-block:: python
-
-    from flexipde.models import Advection, Diffusion, IdealAlfven, VlasovTwoStream
-
-Each model subclasses :class:`~flexipde.models.base.PDEModel` and
-implements the required methods :meth:`initial_state` and
- :meth:`rhs`.  Consult the documentation of each model for details
-about parameters and behaviour.
+See the documentation for examples and derivations of the equations.
 """
 
-from .advection import LinearAdvection as Advection
+from .base import PDEModel
+from .advection import LinearAdvection
 from .diffusion import Diffusion
-from .ideal_mhd import IdealAlfven
+from .resistive_mhd import ResistiveMHD
+from .two_fluid import TwoFluid
+from .drift_kinetic import DriftKinetic
+from .ideal_alfven import IdealAlfven
 from .vlasov import VlasovTwoStream
 
 __all__ = [
-    "Advection",
+    "PDEModel",
+    "LinearAdvection",
     "Diffusion",
+    "ResistiveMHD",
+    "TwoFluid",
+    "DriftKinetic",
     "IdealAlfven",
     "VlasovTwoStream",
 ]

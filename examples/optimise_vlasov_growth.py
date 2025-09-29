@@ -1,75 +1,63 @@
+"""Example: optimise two–stream instability growth rate.
+
+This script demonstrates how to use gradient–based optimisation to find a
+thermal velocity parameter that minimises the growth rate of the two–stream
+instability.  We differentiate the simulation with respect to the thermal
+velocity using JAX and Diffrax, and update the parameter using Optax.
+
+To run this example you must install the JAX extras:
+
+    pip install 'flexipde[jax]'
+
 """
-Optimise the growth rate of the two–stream instability.
-
-This script uses the optimisation utilities in :mod:`flexipde.optim`
-to tune the thermal velocity of the initial distribution in the
-Vlasov–Poisson model.  The objective is the negative of the
-electric field energy at the end of the simulation; maximising
-growth therefore corresponds to minimising this negative value.
-
-Requirements
-------------
-This example requires the JAX and optimisation extras to be
-installed::
-
-    pip install flexipde[jax,optim]
-
-It also requires Optax.
-"""
-
 from __future__ import annotations
 
-import optax  # type: ignore[import-untyped]
+import jax
 import jax.numpy as jnp
-from flexipde import Grid
+import optax
+
+from flexipde.grid import Grid
 from flexipde.discretisation import SpectralDifferentiator
 from flexipde.models import VlasovTwoStream
 from flexipde.solver import Simulation
-from flexipde.optim import optimize_params
+from flexipde.optim import simulate_and_grad
 
 
 def main() -> None:
-    # Build the simulation with a JAX backend
-    grid = Grid.regular([(0.0, 2 * jnp.pi)], [128], periodic=[True])
+    # Define grid and model using JAX backend
+    grid = Grid.regular([(0.0, 2.0 * jnp.pi)], [32], [True])
     diff = SpectralDifferentiator(grid, backend="jax")
     model = VlasovTwoStream(grid, diff, nv=64, v_min=-5.0, v_max=5.0)
-    sim = Simulation(model, t0=0.0, t1=10.0, dt0=0.1, solver="Dopri5")
+    sim = Simulation(model, t0=0.0, t1=1.0, dt0=0.05)
 
-    # Define parameterised initial conditions
-    def ic_from_params(p):
-        """Return initial condition parameters from the optimisation parameter.
-
-        We avoid converting the JAX parameter ``p`` to a Python float here.  The
-        VlasovTwoStream model is differentiable with respect to the thermal
-        velocity when ``p`` is a JAX scalar.  Setting ``backend='jax'`` is
-        unnecessary because the optimisation utilities will automatically
-        enforce a JAX backend for differentiability.
-        """
+    def ic_from_param(p):
         return {
-            "thermal_velocity": p,
-            "amplitude": 1e-3,
+            "f": {
+                "amplitude": 0.05,
+                "drift_velocity": 1.0,
+                "thermal_velocity": p,
+                "background_density": 1.0,
+                "backend": "jax",
+            }
         }
 
-    # Objective: negative electric field energy at final time
     def objective_fn(final_state):
-        f = final_state["f"]
-        # Compute electric field using model’s Poisson solver and JAX backend
-        E = model._poisson_field(f, jnp)
-        return -jnp.mean(E ** 2)
+        # Negative of density fluctuation amplitude at final time as objective
+        f_end = final_state["f"]
+        dv = (model.v_max - model.v_min) / model.nv
+        rho = jnp.sum(f_end, axis=1) * dv
+        # return squared norm of density perturbation
+        return jnp.sum((rho - 1.0) ** 2)
 
-    # Optimiser: use ADAM for gradient ascent
-    optimiser = optax.adam(learning_rate=0.05)
-    init_param = 1.0
-
-    loss, optimal_param = optimize_params(
-        sim,
-        init_params=init_param,
-        ic_from_params=ic_from_params,
-        objective_fn=objective_fn,
-        optimizer=optimiser,
-        num_steps=20,
-    )
-    print(f"Optimal thermal_velocity: {float(optimal_param):.5f}\nFinal objective: {float(loss):.6e}")
+    # Optimise parameter using simple gradient descent
+    param = jnp.array(1.0)
+    opt = optax.adam(learning_rate=0.1)
+    opt_state = opt.init(param)
+    for step in range(10):
+        loss, grad = simulate_and_grad(sim, param, ic_from_param, objective_fn)
+        updates, opt_state = opt.update(grad, opt_state)
+        param = optax.apply_updates(param, updates)
+        print(f"Step {step}: loss={loss:.4e}, param={float(param):.4f}")
 
 
 if __name__ == "__main__":

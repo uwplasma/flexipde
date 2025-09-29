@@ -1,111 +1,60 @@
-# Optimisation and automatic differentiation
+# Optimisation and gradients
 
-One of the unique strengths of `flexipde` is its ability to compute
-gradients of simulation outputs with respect to inputs.  Thanks to
-JAX and Diffrax, the solver behaves as a pure function of its
-parameters; the entire integration is differentiable using
-automatic differentiation【805256974599970†L81-L91】.  This enables a wide range of
-applications, from data‑driven model calibration to physics‑informed
-neural networks.
+One of the unique features of FlexiPDE is that its solver is **differentiable**.
+By using **JAX** for array operations and **Diffrax** for time integration,
+the solution of a PDE can be treated as a function of its parameters or
+initial conditions.  You can then compute derivatives of scalar objective
+functions with respect to these parameters and use gradient–based
+optimisation to fit models, discover equilibria, or train machine–learning
+models.
 
-## Computing gradients of a simulation
+## Computing gradients
 
-The function `simulate_and_grad` in `flexipde.optim` runs a single
-simulation and returns both the objective and its gradient with
-respect to user‑supplied parameters.  The parameters can be any
-PyTree (e.g. scalar, array or dictionary) that `ic_from_params`
-maps to a dictionary of initial condition parameters.  The
-`objective_fn` computes a scalar from the final state (for example, a
-norm or loss with respect to a target).
+The function `flexipde.optim.simulate_and_grad` runs a simulation and
+computes the gradient of a user–defined objective with respect to the
+simulation parameters.  For example, consider the one–dimensional advection
+equation $\partial\_t u + c \partial\_x u = 0$.  Suppose you want to
+compute how the mean value of $u$ at the final time depends on the initial
+amplitude $A$ of a sinusoidal perturbation.  You can do so as follows:
 
 ```python
-from flexipde.optim import simulate_and_grad
-from flexipde.solver import Simulation
-from flexipde.models import Advection
+import jax.numpy as jnp
+from flexipde.grid import Grid
 from flexipde.discretisation import SpectralDifferentiator
-from flexipde import Grid
+from flexipde.models import Advection
+from flexipde.solver import Simulation
+from flexipde.optim import simulate_and_grad
 
-# Build a simulation (JAX backend required)
-grid = Grid.regular([(0.0, 2*3.141592653589793)], [64], periodic=[True])
+grid = Grid.regular([(0.0, 2 * jnp.pi)], [64], periodic=[True])
 diff = SpectralDifferentiator(grid, backend="jax")
 model = Advection(grid, diff, velocity=[1.0])
-sim = Simulation(model, t0=0.0, t1=1.0, dt0=0.01, solver="Dopri5")
+sim = Simulation(model, t0=0.0, t1=1.0, dt0=0.1)
 
-# Define a parameterised initial condition and objective
-def ic_from_params(p):
-    return {"amplitude": p}
+def ic_from_param(p):
+    return {"type": "sinusoidal", "amplitude": p, "wavevector": [1], "phase": 0.0, "backend": "jax"}
 
 def objective_fn(final_state):
-    u_final = final_state["u"]
-    return jnp.sum((u_final - 0.0)**2)  # minimise final amplitude
+    return jnp.mean(final_state["u"])
 
-# Run the simulation and compute gradient
-loss, grad = simulate_and_grad(sim, params=0.1, ic_from_params=ic_from_params,
-                               objective_fn=objective_fn)
-print("loss:", loss)
-print("gradient:", grad)
+param = jnp.array(1.0)
+loss, grad = simulate_and_grad(sim, param, ic_from_param, objective_fn)
+print(loss, grad)
 ```
 
-When using JAX, `simulate_and_grad` employs Diffrax’s
-``BacksolveAdjoint`` to compute gradients efficiently without
-differentiating through each solver step【805256974599970†L81-L91】.
+The returned gradient tells you how a small change in the initial amplitude
+affects the objective.  Internally, `simulate_and_grad` uses Diffrax’s
+adjoint methods to differentiate through the numerical integrator.
 
-## Optimising parameters
+## Parameter optimisation
 
-You can perform iterative optimisation by combining
-`simulate_and_grad` with an Optax optimiser.  The function
-`optimize_params` in `flexipde.optim` implements a simple loop that
-updates parameters for a fixed number of steps.  For example,
-suppose you wish to find the thermal velocity that maximises the
-growth of the two–stream instability.  You could define the loss as
-the negative of the electric field energy at the end of the
-simulation and run gradient ascent:
+To perform a full optimisation, use `flexipde.optim.optimize_params`.
+This function wraps `simulate_and_grad` inside an iterative loop with an
+Optax optimizer.  You supply a starting guess for the parameters and a
+learning rate, and it returns a best–fit parameter along with the final
+objective value.  For example, to optimise the thermal velocity in a
+two–stream Vlasov simulation so that the growth rate of the instability is
+minimal, see the `examples/optimise_vlasov_growth.py` script.
 
-```python
-import optax
-from flexipde.optim import optimize_params
-from flexipde.models import VlasovTwoStream
-
-# Build the Vlasov simulation as in the examples
-grid = Grid.regular([(0.0, 2*3.141592653589793)], [128], periodic=[True])
-diff = SpectralDifferentiator(grid, backend="jax")
-model = VlasovTwoStream(grid, diff, nv=64, v_min=-5.0, v_max=5.0)
-sim = Simulation(model, t0=0.0, t1=10.0, dt0=0.1, solver="Dopri5")
-
-# Parameter: thermal velocity ratio
-init_p = 1.0
-
-def ic_from_p(p):
-    return {"thermal_velocity": p, "amplitude": 1e-3}
-
-def objective(final_state):
-    # Compute electric field energy from distribution f
-    f = final_state["f"]
-    # Reconstruct electric field via Poisson solver
-    E = model._poisson_field(f, jnp)
-    return -jnp.mean(E**2)  # maximise growth => minimise negative energy
-
-# Optimiser (gradient ascent)
-opt = optax.adam(learning_rate=0.1)
-loss, p_opt = optimize_params(sim, init_params=init_p,
-                              ic_from_params=ic_from_p,
-                              objective_fn=objective,
-                              optimizer=opt,
-                              num_steps=20)
-print("Optimal thermal_velocity:", p_opt)
-```
-
-This example illustrates how to carry out parameter optimisation on a
-full PDE simulation.  More advanced strategies, such as scheduling
-learning rates or imposing constraints, can be implemented by
-customising the optimisation loop.
-
-## Beyond gradients
-
-The ability to differentiate through entire simulations opens the
-door to machine‑learning applications.  For instance, you can
-integrate neural networks via [Flax](https://flax.readthedocs.io/)
-into your models, or embed `flexipde` simulations inside larger
-physics‑informed neural networks.  JAX‑MD and JAX‑Fluids provide
-inspiration for differentiable model design【925522637824375†L27-L40】【889881592370340†L35-L41】.
-We encourage contributions that extend these ideas to plasma physics.
+When using optimisation features you must install the `jax` extra and
+ensure that both JAX and Diffrax are available.  If JAX is missing the
+optimisation functions will raise an informative error message.

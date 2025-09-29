@@ -1,0 +1,16 @@
+[grid]
+# One‑dimensional periodic domain
+domain = [(0.0, 6.283185307179586)]
+shape = [128]
+periodic = [true]
+
+[discretisation]
+type = "spectral"
+backend = "numpy"
+
+[model]
+type = "advection"
+velocity = [1.0]
+
+[initial_conditions]
+u = { type = "sinusoidal", amplitude = 1.0, wavevector = [1], phase = 0.0 }

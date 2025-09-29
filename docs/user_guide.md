@@ -1,138 +1,107 @@
 # User guide
 
-This guide walks you through building and running simulations with
-`flexipde`, from constructing a grid and choosing a discretisation to
-configuring models and initial conditions.  You can run simulations
-either from Python code or from declarative TOML configuration files.
+This guide introduces the key concepts of **flexipde**: grids and coordinates,
+discretisation schemes, models and running simulations.  Newcomers to
+computational physics can follow along to build their first simulation.
 
-## Creating a grid
+## Grids and coordinates
 
-All simulations start with a spatial grid.  A `Grid` stores the
-coordinates of each grid point and, optionally, the metric tensor for
-curvilinear coordinates.  To create a regular Cartesian grid use the
-`Grid.regular` factory:
+A simulation domain is discretised into a structured grid.  Create a
+uniform grid using :class:`flexipde.grid.Grid.regular`, specifying the domain
+intervals, number of points and periodicity for each dimension::
 
-```python
-from flexipde import Grid
+    from flexipde.grid import Grid
+    grid = Grid.regular([(0.0, 2.0 * np.pi)], [64], [True])
 
-# Create a 1D grid on [0, 2π) with 128 points and periodic boundaries
-grid = Grid.regular(domain=[(0.0, 2 * 3.141592653589793)],
-                    shape=[128],
-                    periodic=[True])
+This example constructs a one‑dimensional periodic grid on ``[0, 2π]`` with
+64 points.  The coordinates are stored in ``grid.coords`` and the spacing
+is returned by ``grid.spacing()``.
 
-# For 2D or 3D domains, provide a domain and shape per dimension
-grid2 = Grid.regular(domain=[(0.0, 1.0), (0.0, 1.0)],
-                     shape=[64, 64],
-                     periodic=[True, True])
+## Discretisation schemes
+
+Two derivative operators are provided:
+
+- **Spectral**: Uses the Fourier transform to compute derivatives exactly
+  on periodic domains.  Choose this when high accuracy is required and
+  periodic boundaries are appropriate.
+- **Finite difference**: Uses central difference stencils to approximate
+  derivatives on structured grids.  One‑sided stencils enforce Dirichlet
+  or Neumann conditions at boundaries.
+
+Create a discretiser as follows::
+
+    from flexipde.discretisation import SpectralDifferentiator, FiniteDifference
+    diff = SpectralDifferentiator(grid, backend="numpy")
+
+The ``backend`` can be ``numpy`` or ``jax``.  When using JAX the
+derivative operations are JIT compiled and run on GPU/TPU.
+
+## Models
+
+Models define the right‑hand side of a PDE and must inherit from
+:class:`flexipde.models.base.PDEModel`.  The built‑in models include:
+
+* **LinearAdvection**: Transport of a scalar field by a constant velocity.
+* **Diffusion**: Heat equation with a constant diffusivity.
+* **ResistiveMHD**: Simplified 1D resistive magnetohydrodynamics.
+* **TwoFluid**: Separate advection of ion and electron densities.
+* **DriftKinetic**: Simplified drift–kinetic equation in phase space.
+* **IdealAlfven**: Propagation of Alfvén waves.
+* **VlasovTwoStream**: 1D Vlasov–Poisson two‑stream instability.
+
+You can subclass :class:`PDEModel` to implement your own model.  See the
+examples for custom models such as Burgers' equation and the
+Hasegawa–Wakatani system.
+
+## Running simulations
+
+To run a simulation, either write a TOML configuration file or build the
+components directly in Python.
+
+### From a configuration file
+
+```
+[grid]
+domain = [[0.0, 2.0]]
+shape = [64]
+periodic = [true]
+
+[discretisation]
+type = "spectral"
+backend = "numpy"
+
+[model]
+type = "diffusion"
+[model.parameters]
+diffusivity = 0.1
+
+[simulation]
+t0 = 0.0
+t1 = 1.0
+dt0 = 0.01
+
+[initial_conditions]
+u = { type = "sinusoidal", amplitude = 1.0, wavevector = [1], phase = 0.0 }
 ```
 
-You can also load a grid from a configuration dictionary or TOML file
-using `Grid.from_config`.  See [`flexipde/grid.py`](../flexipde/grid.py)
-for details.
+Save this as ``mydiffusion.toml`` and run::
 
-## Choosing a discretisation
+    flexipde mydiffusion
 
-`flexipde` currently supports two discretisation schemes:
-
-* **Spectral** – uses the Fast Fourier Transform to compute
-  derivatives.  It is highly accurate for smooth functions and
-  periodic domains.  Based on the wavenumber array computed from the
-  grid spacing and shape.
-* **Finite difference** – uses centred finite difference stencils
-  (second order) to compute derivatives.  Supports periodic and
-  non‑periodic boundary conditions.
-
-To instantiate a discretiser, pass the grid and optionally a
-backend:
+### From Python
 
 ```python
-from flexipde.discretisation import SpectralDifferentiator, FiniteDifference
-
-diff_spec = SpectralDifferentiator(grid, backend="jax")  # FFTs in JAX
-diff_fd = FiniteDifference(grid)                          # second order FD
-```
-
-The `backend` argument controls whether derivatives are computed with
-NumPy or JAX.  If omitted, the discretiser chooses NumPy by default.
-
-## Selecting a model
-
-Models encapsulate the physics of your problem.  Each model
-subclasses `PDEModel` and implements an `initial_state` method that
-returns a dictionary of field arrays and an `rhs` method that
-computes the time derivative of those fields.  The following models
-are included:
-
-| Model            | Description                                                                  |
-|------------------|------------------------------------------------------------------------------|
-| `Advection`      | Linear advection of a scalar field by a constant velocity vector.            |
-| `Diffusion`      | Scalar diffusion equation with constant diffusivity.                        |
-| `IdealAlfven`    | Simplified ideal MHD: transverse Alfvén waves propagating along a background field. |
-| `VlasovTwoStream`| 1D Vlasov–Poisson solver for the two–stream instability.                     |
-
-To create a model, pass the grid, discretiser and model‑specific
-parameters.  For example, a 1D advection model with velocity 1.0:
-
-```python
-from flexipde.models import Advection
-
-model = Advection(grid, diff_spec, velocity=[1.0])
-```
-
-Refer to [Models](models.md) for a detailed description of each model
-and its parameters.
-
-### Initial conditions
-
-Each model supports custom initial conditions via its
-`initial_state(ic_params)` method.  The meaning of `ic_params`
-depends on the model.  For example, the advection model accepts
-``type`` (``"gaussian"``, ``"sinusoidal"`` or ``"constant"``), ``amplitude``,
-and other keys.  See the model documentation for details.
-
-When using the configuration file interface, you can specify an
-``[initial_conditions]`` section with parameters that will be passed
-directly to `initial_state`.  You can also provide a list of initial
-condition tables to run multiple simulations in one go.
-
-## Running a simulation from Python
-
-The `Simulation` class orchestrates time integration.  You must
-specify the start and end time, an optional initial step size, the
-solver and the model.  For example:
-
-```python
+from flexipde.grid import Grid
+from flexipde.discretisation import SpectralDifferentiator
+from flexipde.models import Diffusion
 from flexipde.solver import Simulation
 
-sim = Simulation(model, t0=0.0, t1=1.0, dt0=0.01, solver="Dopri5")
-times, states = sim.run()
+grid = Grid.regular([(0.0, 2.0)], [64], [True])
+diff = SpectralDifferentiator(grid)
+model = Diffusion(grid, diff, diffusivity=0.1)
+sim = Simulation(model, t0=0.0, t1=1.0, dt0=0.01)
+sim.initial_state_params = {"u": {"type": "sinusoidal", "amplitude": 1.0, "wavevector": [1]}}
+result = sim.run()
 ```
 
-`times` is an array of save times and `states` is a list of
-dictionaries holding the fields at those times.  When JAX and
-Diffrax are available, Diffrax’s adaptive solvers such as
-`Dopri5` and `Tsit5` are used【805256974599970†L81-L91】.  Otherwise a simple
-explicit Euler integrator is used as a fallback.
-
-You can supply a list of initial condition parameters to run a batch
-of simulations.  If JAX and Diffrax are available, the runs are
-vectorised with `jax.vmap` for parallel execution.
-
-## Running from a configuration file
-
-For reproducibility and ease of use, `flexipde` accepts TOML files
-that describe the grid, discretisation, model, solver and initial
-conditions.  See the [examples](examples.md) for complete files.  To
-run a simulation from the command line:
-
-```bash
-python -m flexipde.run path/to/config.toml --output results.pkl.gz
-```
-
-The script will read the configuration, build the simulation, run it
-and save the results.  If `rich` is installed, summary information is
-printed in a colourful table.  Without an output file, the script
-prints a summary of the saved times and field extrema.
-
-Saved results are encapsulated in a `SimulationResult` object and can
-be reloaded for analysis and plotting.
+See the examples and API reference for more usage.

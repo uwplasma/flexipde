@@ -1,0 +1,36 @@
+site_name: FlexiPDE Documentation
+repo_url: https://github.com/uwplasma/flexipde
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep orange
+  font:
+    text: Roboto
+  logo: assets/logo.svg
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - pymdownx.arithmatex
+  - pymdownx.superfences
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - User Guide: user_guide.md
+  - Discretization: discretization.md
+  - Optimization: optimization.md
+  - Model Reference: models.md
+  - Two-Stream Instability: two_stream_instability.md
+  - Hasegawa–Wakatani: hasegawa_wakatani.md
+  - Examples: examples.md
+  - API Reference: reference.md

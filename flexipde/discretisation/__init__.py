@@ -1,32 +1,25 @@
-"""
-Discretisation schemes for flexipde.
+"""Spatial discretisation schemes.
 
-This package provides pluggable numerical differentiation routines.  Each
-scheme encapsulates the logic for computing spatial derivatives on a
-given :class:`~flexipde.grid.Grid`.  Users can select a scheme via the
-configuration file or by passing the appropriate differentiator class
-directly when constructing a model.
+The :mod:`flexipde.discretisation` subpackage contains classes that compute
+spatial derivatives on structured grids.  Two schemes are provided out of
+the box:
 
-Two schemes are provided in the initial release:
+* :class:`~flexipde.discretisation.spectral.SpectralDifferentiator` uses
+  Fourier transforms to compute derivatives exactly on periodic domains.
+* :class:`~flexipde.discretisation.finite_difference.FiniteDifference` uses
+  finite difference stencils to approximate derivatives on non‑periodic
+  domains.
 
-* :mod:`flexipde.discretisation.spectral` – spectral (Fourier) methods
-  suitable for periodic problems.  Spectral methods provide high
-  accuracy and minimal numerical dissipation, making them well suited
-  for linear advection and wave problems.  They leverage the Fast
-  Fourier Transform (FFT) implemented in JAX or NumPy.
-* :mod:`flexipde.discretisation.finite_difference` – finite difference
-  stencils for first and second derivatives.  These methods work on
-  both periodic and non‑periodic domains and are useful for problems
-  with boundary conditions like Dirichlet or Neumann.
-
-In the future the library may include finite element or finite volume
-methods.  The modular design means that adding a new scheme simply
-requires implementing the same public API: initialise with a
-:class:`Grid` and provide functions ``grad``, ``div`` and
-``laplacian``.  See the base classes for guidance.
+Each discretiser exposes methods ``grad``, ``divergence`` and
+``laplacian``.  The ``backend`` argument controls whether the
+implementation uses NumPy or JAX; if JAX is available, JIT compilation
+provides significant speedups.
 """
 
 from .spectral import SpectralDifferentiator
 from .finite_difference import FiniteDifference
 
-__all__ = ["SpectralDifferentiator", "FiniteDifference"]
+__all__ = [
+    "SpectralDifferentiator",
+    "FiniteDifference",
+]

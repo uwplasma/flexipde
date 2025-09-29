@@ -1,19 +1,18 @@
 [grid]
-domain = [[0.0, 6.283185307179586]]
+# One‑dimensional periodic domain for the Alfvén wave
+domain = [(0.0, 6.283185307179586)]
 shape = [128]
 periodic = [true]
 
 [discretisation]
-scheme = "spectral"
-backend = "jax"
+type = "spectral"
+backend = "numpy"
 
 [model]
-type = "alfven"
-B0 = [1.0]
+type = "ideal_alfven"
+B0 = 1.0
 
-[solver]
-t0 = 0.0
-t1 = 2.0
-dt0 = 0.05
-solver = "Dopri5"
-save_every = 10
+[initial_conditions]
+# Transverse velocity and magnetic field perturbations
+v = { type = "sinusoidal", amplitude = -1.0, wavevector = [1], phase = 0.0 }
+B = { type = "sinusoidal", amplitude = 1.0, wavevector = [1], phase = 0.0 }

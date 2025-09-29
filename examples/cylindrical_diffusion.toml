@@ -1,0 +1,16 @@
+[grid]
+# Cylindrical coordinates: (r, theta).  Theta is periodic.
+domain = [(0.0, 1.0), (0.0, 6.283185307179586)]
+shape = [64, 64]
+periodic = [false, true]
+
+[discretisation]
+type = "finite_difference"
+backend = "numpy"
+
+[model]
+type = "diffusion"
+diffusivity = 0.01
+
+[initial_conditions]
+u = { type = "constant", value = 1.0 }

@@ -1,0 +1,22 @@
+[grid]
+domain = [[0.0, 1.0]]
+shape = [64]
+periodic = [true]
+
+[discretisation]
+type = "spectral"
+backend = "numpy"
+
+[model]
+type = "diffusion"
+[model.parameters]
+diffusivity = 0.1
+
+[simulation]
+t0 = 0.0
+t1 = 0.5
+dt0 = 0.01
+save_every = 10
+
+[initial_conditions]
+u = { type = "gaussian", amplitude = 1.0, center = [0.5], width = 0.1 }
