@@ -59,13 +59,39 @@ def _generate_field(grid: Grid, ic_params: Dict[str, Any], backend: str = "numpy
         amp = ic_params.get("amplitude", 1.0)
         center = ic_params.get("center", [0.0] * grid.ndim)
         width = ic_params.get("width", 1.0)
+        # if width is a single value or string expression, replicate for each dim
         if not isinstance(width, (list, tuple)):
             width = [width] * grid.ndim
+        # convert center and width values to floats, evaluating simple expressions if strings
+        center_vals = []
+        width_vals = []
+        for c in center:
+            if isinstance(c, str):
+                try:
+                    # import here to avoid circular import
+                    from ..io import _safe_eval  # type: ignore
+                    c_val = _safe_eval(c)
+                except Exception:
+                    # fallback: try to cast directly
+                    c_val = float(c)
+            else:
+                c_val = float(c)
+            center_vals.append(c_val)
+        for w in width:
+            if isinstance(w, str):
+                try:
+                    from ..io import _safe_eval  # type: ignore
+                    w_val = _safe_eval(w)
+                except Exception:
+                    w_val = float(w)
+            else:
+                w_val = float(w)
+            width_vals.append(w_val)
         # build meshgrid and compute Gaussian
         coords = grid.coords
         mesh = jnp.meshgrid(*coords, indexing='ij')
         expr = 1.0
-        for xi, c0, w in zip(mesh, center, width):
+        for xi, c0, w in zip(mesh, center_vals, width_vals):
             expr = expr * jnp.exp(-((xi - c0) ** 2) / (2.0 * (w ** 2)))
         return amp * expr
     elif kind == "sinusoidal":

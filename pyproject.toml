@@ -13,12 +13,11 @@ maintainers = [
   { name = "UWPlasma", email = "uwplasma@wisc.edu" },
 ]
 
-license = "MIT"
+license = {text = "MIT"}
 
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
@@ -39,7 +38,7 @@ docs = ["mkdocs-material", "mkdocstrings-python"]
 testing = ["pytest", "pytest-cov", "mypy"]
 
 [build-system]
-requires = ["setuptools >= 61.0"]
+requires = ["setuptools >= 61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

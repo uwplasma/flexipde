@@ -1,4 +1,4 @@
-"""Resistive MHD example model.
+r"""Resistive MHD example model.
 
 This class implements a very simple 1D resistive magnetohydrodynamics (MHD)
 system.  It is **not** a complete MHD solver but serves as a demonstration

@@ -29,6 +29,103 @@ from .models import (
 )
 from .solver import Simulation
 
+# -----------------------------------------------------------------------------
+# Helper functions for safely evaluating numeric expressions in configuration
+# files.  TOML does not permit arbitrary expressions like ``2*pi`` or
+# scientific notation outside of numbers.  To allow users to specify
+# constants such as ``"2*pi"`` in the ``domain`` or ``dimensions`` fields,
+# we provide a minimal arithmetic evaluator.  Only simple arithmetic
+# expressions with addition, subtraction, multiplication, division and
+# exponentiation are permitted, and the constants ``pi``, ``tau`` and ``e``
+# are allowed.  See ``docs/installation.md`` for details.
+import ast
+import operator as _op
+import math as _math
+
+_ALLOWED_OPS: Dict[Any, Any] = {
+    ast.Add: _op.add,
+    ast.Sub: _op.sub,
+    ast.Mult: _op.mul,
+    ast.Div: _op.truediv,
+    ast.Pow: _op.pow,
+    ast.USub: _op.neg,
+    ast.UAdd: _op.pos,
+}
+_CONST_MAP: Dict[str, float] = {
+    "pi": _math.pi,
+    "tau": 2 * _math.pi,
+    "e": _math.e,
+}
+
+
+def _safe_eval(expr: str) -> float:
+    """Safely evaluate a simple arithmetic expression to a float.
+
+    Only expressions consisting of numbers, the constants ``pi``, ``tau`` and
+    ``e``, and the operators +, -, *, /, and ** are allowed.  Anything else
+    raises ``ValueError``.  This function is used to interpret strings like
+    ``"2*pi"`` or ``"1e-6*1e-6"`` found in configuration files.
+
+    Parameters
+    ----------
+    expr:
+        The expression to evaluate.
+
+    Returns
+    -------
+    float
+        The evaluated numeric value.
+
+    Raises
+    ------
+    ValueError
+        If the expression contains unsupported operations or names.
+    """
+    node = ast.parse(expr, mode="eval").body
+
+    def _eval(n: ast.AST) -> float:
+        if isinstance(n, ast.Num):  # type: ignore[attr-defined]
+            return n.n  # type: ignore[attr-defined]
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return float(n.value)
+        if isinstance(n, ast.BinOp) and type(n.op) in _ALLOWED_OPS:
+            left = _eval(n.left)  # type: ignore[arg-type]
+            right = _eval(n.right)  # type: ignore[arg-type]
+            return _ALLOWED_OPS[type(n.op)](left, right)
+        if isinstance(n, ast.UnaryOp) and type(n.op) in _ALLOWED_OPS:
+            return _ALLOWED_OPS[type(n.op)](_eval(n.operand))
+        if isinstance(n, ast.Name) and n.id in _CONST_MAP:
+            return _CONST_MAP[n.id]
+        raise ValueError(f"Unsafe or unsupported expression: {expr}")
+
+    return float(_eval(node))
+
+
+def _coerce_dims(dims: Iterable[Iterable[Any]]) -> List[Tuple[float, float]]:
+    """Coerce a sequence of dimension pairs to floats via safe evaluation.
+
+    Each element ``(a, b)`` may be a number or a string expression.  This
+    helper evaluates any string using :func:`_safe_eval` and returns a list
+    of ``(float(a), float(b))`` pairs.  Non‑string values are converted
+    directly to float.
+    """
+    out: List[Tuple[float, float]] = []
+    for pair in dims:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError("Domain and dimensions must be sequences of pairs")
+        a, b = pair
+        # If a or b are strings, evaluate them safely.  Otherwise cast to float.
+        if isinstance(a, str):  # type: ignore
+            a_val = _safe_eval(a)
+        else:
+            a_val = float(a)
+        if isinstance(b, str):  # type: ignore
+            b_val = _safe_eval(b)
+        else:
+            b_val = float(b)
+        out.append((float(a_val), float(b_val)))
+    return out
+
 
 def load_toml(path: str) -> Dict[str, Any]:
     """Load a TOML file into a dictionary.
@@ -62,9 +159,11 @@ def build_simulation(cfg: Dict[str, Any] | str) -> Simulation:
     gcfg = cfg.get("grid", {})
     # Support both legacy keys (domain, shape) and new keys (dimensions, resolution)
     if "dimensions" in gcfg:
-        domain = [(float(a), float(b)) for a, b in gcfg.get("dimensions", [])]
+        raw_dims = gcfg.get("dimensions", [])
+        domain = _coerce_dims(raw_dims)
     else:
-        domain = [(float(a), float(b)) for a, b in gcfg.get("domain", [])]
+        raw_dom = gcfg.get("domain", [])
+        domain = _coerce_dims(raw_dom)
     if "resolution" in gcfg:
         shape = [int(n) for n in gcfg.get("resolution", [])]
     else:

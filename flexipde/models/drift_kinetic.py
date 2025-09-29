@@ -1,4 +1,4 @@
-"""Drift–kinetic equation (simplified).
+r"""Drift–kinetic equation (simplified).
 
 The drift–kinetic model describes the evolution of a distribution function
 ``f(x, v, t)`` in phase space.  Here we implement a minimal 1D version
