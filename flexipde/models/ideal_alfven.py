@@ -1,4 +1,4 @@
-"""Ideal Alfvén wave model.
+r"""Ideal Alfvén wave model.
 
 This is a toy model for the propagation of shear Alfvén waves in one
 dimension.  It evolves transverse velocity ``v`` and magnetic field ``B``

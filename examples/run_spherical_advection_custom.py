@@ -1,29 +1,30 @@
-r"""Example: custom 2D advection on a sphere.
+"""Example: 2D advection on a sphere.
 
-This example demonstrates how to define a custom PDE model outside the
-``flexipde`` package.  We solve a simple advection equation on the
-surface of a sphere in terms of the coordinates ``(θ, φ)``.  The
-equation is
+This custom example demonstrates how to implement a new coordinate
+system outside of the built‑in grids.  We solve a 2D advection
+equation on the surface of the unit sphere using spherical
+coordinates ``(θ, φ)``.  The PDE is
 
 .. math::
 
     \partial_t u + v_\theta \frac{\partial u}{\partial \theta}
-        + \frac{v_\phi}{\sin\theta} \frac{\partial u}{\partial \phi} = 0.
+        + v_\phi \frac{1}{\sin\theta} \frac{\partial u}{\partial \phi} = 0,
 
-We use a finite difference discretisation on a ``θ``--``φ`` grid.  The
-velocities ``v_θ`` and ``v_φ`` are constants in this simple example.
+where ``v_θ`` and ``v_φ`` are constant velocities.  The grid is
+periodic in both directions for simplicity.  This script defines a
+custom :class:`PDEModel` subclass with its own spatial derivatives and
+integrates it with the :class:`Simulation` wrapper.
 
-To run this example, execute:
+To run the example:
 
 .. code-block:: bash
 
-    python run_spherical_advection_custom.py
+    python examples/run_spherical_advection_custom.py
 
-Note that this custom model is defined entirely within this script;
-users can create their own models similarly without modifying
-``flexipde`` itself.
+The script will plot the initial and final distributions on the
+sphere.  No TOML file is used because the user defines the model
+directly in Python.
 """
-
 from __future__ import annotations
 
 import numpy as np
@@ -36,75 +37,77 @@ from flexipde.solver import Simulation
 
 
 class SphericalAdvection(PDEModel):
-    """Custom 2D advection equation on a sphere.
+    """Custom 2D advection on a sphere.
 
     Parameters
     ----------
     grid:
-        The ``θ, φ`` grid.  The first dimension corresponds to polar angle
-        ``θ \in [0, \pi]`` and the second to azimuthal angle ``φ \in [0, 2\pi)``.
+        A 2D grid with domains ``[(0, π), (0, 2π)]`` corresponding to
+        ``θ`` and ``φ``.  Periodic boundaries should be used on both
+        axes.
     diff:
-        A ``FiniteDifference`` discretiser on this grid.
-    velocities:
-        A sequence of two floats ``(v_θ, v_φ)`` giving the constant
-        advection velocities in the ``θ`` and ``φ`` directions.
+        A dummy finite difference discretiser.  It is not used in the
+        RHS calculation but satisfies the base class signature.
+    velocity:
+        Tuple ``(v_theta, v_phi)`` giving the constant angular
+        velocities.
     """
 
-    def __init__(self, grid: Grid, diff: FiniteDifference, velocities: tuple[float, float]) -> None:
-        self.velocities = velocities
+    def __init__(self, grid: Grid, diff: Any, velocity: tuple[float, float] = (1.0, 0.5)) -> None:
         super().__init__(grid, diff)
+        self.velocity = velocity
 
     def __post_init__(self) -> None:
+        # One field named 'u'; periodic boundary conditions in both directions
         self.field_names = ["u"]
+        self.field_bcs = ["periodic", "periodic"]
         super().__post_init__()
 
-    def rhs(self, state: dict[str, np.ndarray], t: float) -> dict[str, np.ndarray]:
+    def rhs(self, state: dict[str, Any], t: Any) -> dict[str, Any]:
         u = state["u"]
-        # gradients: list of arrays [du/dθ, du/dφ]
-        grads = self.diff.grad(u)
-        dtheta = grads[0]
-        dphi = grads[1]
-        v_theta, v_phi = self.velocities
-        # sin(theta) for the metric factor; broadcast to grid shape
-        theta = self.grid.coords[0][:, None]  # shape (nθ, 1)
-        sin_theta = np.sin(theta)
-        # avoid division by zero at the poles by clipping
-        sin_theta = np.where(sin_theta == 0.0, 1.0, sin_theta)
-        du_dt = -v_theta * dtheta - v_phi * (dphi / sin_theta)
-        return {"u": du_dt}
+        v_theta, v_phi = self.velocity
+        # grid spacings in θ and φ
+        dtheta, dphi = self.grid.spacing()
+        # central differences with periodic boundaries
+        du_dtheta = (np.roll(u, -1, axis=0) - np.roll(u, 1, axis=0)) / (2.0 * dtheta)
+        du_dphi = (np.roll(u, -1, axis=1) - np.roll(u, 1, axis=1)) / (2.0 * dphi)
+        theta = self.grid.coords[0][:, None]
+        # Avoid division by zero at the poles by adding a small epsilon
+        eps = 1e-6
+        sin_theta = np.sin(theta) + eps
+        # Advection terms
+        adv_theta = v_theta * du_dtheta
+        adv_phi = v_phi * (du_dphi / sin_theta)
+        return {"u": -(adv_theta + adv_phi)}
 
 
 def main() -> None:
-    # Define a spherical grid: θ in [0, π], φ in [0, 2π)
-    n_theta = 64
-    n_phi = 128
-    grid = Grid.regular([(0.0, np.pi), (0.0, 2.0 * np.pi)], [n_theta, n_phi], [False, True])
-    diff = FiniteDifference(grid)
-    model = SphericalAdvection(grid, diff, velocities=(0.5, 1.0))
-    # Initial condition: Gaussian blob centred at (θ0, φ0)
-    theta0 = np.pi / 3.0
-    phi0 = np.pi
-    width = 0.2
-    theta = grid.coords[0][:, None]
-    phi = grid.coords[1][None, :]
-    u0 = np.exp(-((theta - theta0) ** 2 + (phi - phi0) ** 2) / (2 * width ** 2))
+    # Create a 2D grid in θ ∈ [0, π] and φ ∈ [0, 2π]
+    grid = Grid.regular([(0.0, np.pi), (0.0, 2.0 * np.pi)], [64, 128], [True, True])
+    diff = FiniteDifference(grid)  # unused but required by constructor
+    model = SphericalAdvection(grid, diff, velocity=(1.0, 0.25))
     sim = Simulation(model, t0=0.0, t1=1.0, dt0=0.01)
-    # supply initial condition via initial_state_params
-    # Provide initial condition as a raw array via the "array" key so that
-    # flexipde copies it directly.
+    # initial condition: a bump near the equator
+    theta, phi = np.meshgrid(grid.coords[0], grid.coords[1], indexing="ij")
+    u0 = np.exp(-((theta - np.pi / 2)**2) / 0.2**2) * (1 + 0.5 * np.cos(phi))
     sim.initial_state_params = {"u": {"array": u0}}
     result = sim.run()
-    # Plot initial and final states
+    # Extract results
     u_initial = result.states[0]["u"]
     u_final = result.states[-1]["u"]
+    # Plot initial and final on a 2D contour plot
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    im0 = axes[0].imshow(u_initial, origin="lower", aspect="auto")
+    im0 = axes[0].pcolormesh(grid.coords[1], grid.coords[0], u_initial, shading="auto")
+    axes[0].set_title("Initial u(θ, φ)")
+    axes[0].set_xlabel("φ")
+    axes[0].set_ylabel("θ")
     fig.colorbar(im0, ax=axes[0])
-    axes[0].set_title("Initial u")
-    im1 = axes[1].imshow(u_final, origin="lower", aspect="auto")
+    im1 = axes[1].pcolormesh(grid.coords[1], grid.coords[0], u_final, shading="auto")
+    axes[1].set_title("Final u(θ, φ)")
+    axes[1].set_xlabel("φ")
+    axes[1].set_ylabel("θ")
     fig.colorbar(im1, ax=axes[1])
-    axes[1].set_title("Final u at t=1")
-    plt.suptitle("Custom spherical advection")
+    fig.suptitle("Spherical advection with constant angular velocities")
     plt.tight_layout()
     plt.show()
 

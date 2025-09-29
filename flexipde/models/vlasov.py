@@ -1,4 +1,4 @@
-"""1D Vlasov–Poisson two‑stream instability.
+r"""1D Vlasov–Poisson two‑stream instability.
 
 This model solves a 1D Vlasov equation coupled to Poisson's equation for
 the electric field, modelling the two‑stream instability.  The system is

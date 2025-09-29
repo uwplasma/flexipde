@@ -134,27 +134,39 @@ class Simulation:
         times.append(self.t0)
         states.append(state0)
         if use_jax:
-            # JAX integration with diffrax
-            # In the JAX case, avoid converting arrays to NumPy.  Return JAX arrays
-            y0 = state0  # dict of JAX arrays
+            # JAX integration with diffrax.  Avoid converting JAX arrays
+            # to NumPy inside the differentiable portion of the code.
+            y0 = state0  # state0 is already a dictionary of JAX arrays
             model = self.model
 
             def rhs_fn(t, y, args):
-                # t is a JAX scalar; do not convert to float
-                dy = model.rhs(y, t)
-                return dy
+                # t is a JAX scalar; do not cast to float.  Compute the
+                # derivative using the model's rhs, which returns a dict
+                # of JAX arrays.
+                return model.rhs(y, t)
 
             term = ODETerm(rhs_fn)
             solver = Dopri5()
+            # Save only the initial and final states.  diffrax will
+            # return a solution object whose ``ys`` attribute is the
+            # final state at t1.
             saveat = SaveAt(t0=True, t1=True)
-            sol = diffeqsolve(term, solver, t0=self.t0, t1=self.t1, dt0=self.dt0,
-                              y0=y0, saveat=saveat)
-            # times array includes start and end times
-            times_array = _np.array([self.t0, self.t1], dtype=float)
-            times = times_array.tolist()
-            # states is a list of dicts: first the initial state (NumPy arrays), then final state (JAX arrays)
-            ys = [state0, sol.ys]
-            states = ys
+            sol = diffeqsolve(
+                term,
+                solver,
+                t0=self.t0,
+                t1=self.t1,
+                dt0=self.dt0,
+                y0=y0,
+                saveat=saveat,
+            )
+            # times remains a list of floats for compatibility
+            times = [self.t0, self.t1]
+            # states is a list of dictionaries: the initial state and
+            # the final state returned by diffrax.  Do not convert
+            # JAX arrays to NumPy; leave them as JAX arrays so that
+            # gradients can flow through them.
+            states = [state0, sol.ys]
         else:
             # explicit Euler fallback
             t = self.t0

@@ -39,6 +39,10 @@ the simulation manually and plots the result.
 - **run_burgers_2d_custom.py**: Defines a 2D Burgers' equation model on the fly
   using finite differences and solves it.
 - **run_hasegawa_wakatani.py**: User‑implemented Hasegawa–Wakatani system.
+- **run_spherical_advection_custom.py**: Solves a 2D advection equation on
+  the surface of a sphere using spherical coordinates (\theta,\,\phi).  This
+  example demonstrates how to supply your own coordinate system and
+  discretisation to flexipde.
 
 ## Optimisation
 
