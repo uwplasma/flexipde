@@ -1,42 +1,27 @@
+---
+title: Installation
+---
+
 # Installation
 
-FlexiPDE can be installed from PyPI or from source.  The core package only
-depends on **NumPy** and (for Python versions older than 3.11) **tomllib**.
-All advanced functionality—JAX acceleration, differentiable solvers, symbolic
-equations, testing, and documentation—lives in optional extras.  To install
-FlexiPDE with only the core dependencies:
+flexipde is available on PyPI.  You can install the core package with:
 
 ```bash
 pip install flexipde
 ```
 
-To install with JAX and the optional physics and optimisation tools, use the
-`jax` extra:
+Optional dependencies can be pulled in via extras:
 
-```bash
-pip install 'flexipde[jax]'
-```
+* **JAX support:** `pip install 'flexipde[jax]'` installs JAX, Diffrax, Equinox and Optax for GPU acceleration and automatic differentiation.
+* **Documentation:** `pip install 'flexipde[docs]'` installs MkDocs Material and mkdocstrings to build the documentation locally.
+* **Testing:** `pip install 'flexipde[testing]'` installs pytest, pytest‑cov and mypy for running the test suite and static analysis.
 
-The `symbolic` extra adds support for parsing equations from strings via
-SymPy (through the `sympy2jax` library), and the `testing` extra installs
-`pytest` and `mypy` for running the test suite and static type checking.
-
-To install from a local checkout of the repository (for development), run
+To install from source (for development), clone the repository and install in editable mode:
 
 ```bash
 git clone https://github.com/uwplasma/flexipde.git
 cd flexipde
-pip install -e .
+pip install -e .[jax,testing,docs]
 ```
 
-If you intend to build the documentation locally, install the `docs` extra and
-run `mkdocs serve` from the project root:
-
-```bash
-pip install 'flexipde[docs]'
-mkdocs serve
-```
-
-This will spin up a local development server at `http://localhost:8000` where
-you can browse the documentation, which includes many examples and a thorough
-API reference.
+The library is pure Python and requires only NumPy by default.  On Python 3.11 and newer, the standard library `tomllib` is used to parse configuration files; on older Pythons, the `tomli` backport is required and pulled in automatically.

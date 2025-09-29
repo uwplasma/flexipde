@@ -1,27 +1,58 @@
-# Two–stream instability
+---
+title: Two‑stream instability
+---
 
-The **two–stream instability** is a fundamental kinetic phenomenon in plasma
-physics: when two counter–streaming beams of charged particles interact,
-small perturbations can grow exponentially due to resonant wave–particle
-interactions.  In the Vlasov–Poisson model, the distribution function
-$f(x,v,t)$ evolves according to
+# Two‑stream instability
 
-\[\frac{\partial f}{\partial t} + v \frac{\partial f}{\partial x} + E(x,t) \frac{\partial f}{\partial v} = 0,\]
+The two‑stream instability is a kinetic plasma instability where two beams of charged particles moving at different velocities interact via self‑consistent electric fields.  flexipde includes a simple 1D Vlasov–Poisson solver to simulate this phenomenon.
 
-where the self–consistent electric field $E(x,t)$ is obtained from Poisson’s
-equation
+## Equations
 
-\[\frac{\partial E}{\partial x} = 1 - \int f(x,v,t) \, dv.\]
+We consider a distribution function $f(x,v,t)$ of electrons in one spatial dimension and one velocity dimension.  The Vlasov equation reads
 
-In FlexiPDE, the two–stream instability is implemented as the
-`VlasovTwoStream` model.  It discretises the spatial derivative with either
-spectral or finite differences and the velocity derivative with a simple
-finite difference.  The initial condition is typically a superposition of
-two drifting Maxwellians plus a small sinusoidal perturbation.  You can
-configure the thermal velocity, drift velocity, perturbation amplitude and
-wavenumber via the TOML configuration file or directly in Python.
+$$
+\partial_t f + v\,\partial_x f + E(x,t)\,\partial_v f = 0,
+$$
 
-See `examples/vlasov_two_stream.toml` and `examples/run_vlasov_two_stream.py` for a
-complete working example.  The growth rate of the instability can be
-optimised by varying the temperature ratio using the optimisation utilities in
-`flexipde.optim`.
+where $E(x,t)$ is the electric field determined by Poisson’s equation
+
+$$
+\partial_x E = 1 - \int f\,\mathrm{d}v.
+$$
+
+The model in flexipde discretises velocity space on a regular grid $v_j\in[v_{\min},v_{\max}]$ and uses a spectral method in the spatial direction.  The electric field is obtained by solving Poisson’s equation in Fourier space.  Boundary conditions are periodic in $x$.
+
+## Usage
+
+To simulate the two‑stream instability, create a TOML configuration with a Vlasov model:
+
+```toml
+[grid]
+dimensions = [[0.0, 2*pi]]
+resolution = [64]
+periodic = [true]
+
+[model]
+type = "vlasov"
+nv = 64
+v_min = -5.0
+v_max = 5.0
+
+[initial_conditions]
+amplitude = 0.05
+thermal_velocity = 0.5
+drift_velocity = 2.0
+background_density = 0.5
+```
+
+Run from the command line:
+
+```bash
+flexipde examples/vlasov_two_stream
+```
+
+or from a Python script using :mod:`flexipde.io.build_simulation`.
+
+## Manufactured solution test
+
+The manufactured solution for this model uses a static distribution that is independent of time with zero electric field.  If the perturbation amplitude and drift velocity are set to zero, the distribution should remain constant.  The test `test_vlasov_constant_distribution_is_time_invariant` verifies this behaviour.

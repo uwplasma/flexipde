@@ -1,58 +1,31 @@
-# Discretization Schemes
+---
+title: Discretisation
+---
 
-FlexiPDE separates the *model* (the set of partial differential equations to
-be solved) from the *discretization* (the numerical method used to approximate
-spatial derivatives).  This modular approach allows you to swap between
-high–order spectral methods, finite–difference stencils, and even curvilinear
-coordinates without changing the underlying physics model.
+# Discretisation methods
 
-## Spectral differentiation
+The accuracy and efficiency of a PDE solver depend heavily on how derivatives are computed.  flexipde provides two complementary discretisation backends and is designed to allow others to be added easily.
 
-For periodic domains, the code provides a **spectral** discretizer.  Spatial
-derivatives are computed via the Fourier transform: for a field $u(x)$ defined
-on a grid $x\_j$, the derivative is computed by multiplying each Fourier mode
-by its wavenumber.  For example, the first derivative of $u$ in one
-dimension is
+## Fourier spectral methods
 
-\[\frac{\partial u}{\partial x} = \mathcal{F}^{-1}\bigl( i k \cdot \hat{u}(k)\bigr),\]
+Spectral methods are extremely accurate for smooth, periodic functions.  The spatial domain is discretised on an evenly spaced grid and the field values are transformed into Fourier space via the FFT.  Derivatives are computed by multiplying each Fourier mode by an appropriate factor (e.g. \(ik\) for a first derivative).  The inverse FFT then returns to physical space.
 
-where $\hat{u}(k)$ is the discrete Fourier transform of $u$.  The
-implementation uses either `numpy.fft` or `jax.numpy.fft` depending on the
-backend selected when constructing the discretizer.  The Laplacian
-$\nabla^2 u$ is computed similarly by multiplying the Fourier modes by
-$(i k)^2$ along each axis.
+flexipde implements multidimensional FFTs via NumPy (or JAX if available).  The :class:`flexipde.discretisation.SpectralDifferentiator` class handles gradient, divergence and Laplacian operators in an arbitrary number of dimensions.  In non‑Cartesian coordinates you can supply metric factors which are inserted into the derivative formulas.
 
-Spectral differentiation is exact for smooth periodic functions and exhibits
-exponential convergence as you refine the grid.  It is the default choice
-when the domain is periodic in all directions and you need high accuracy with
-few grid points.
+Because spectral methods assume periodic boundary conditions, they are best suited to domains like tori or slabs with periodic ends.  For non‑periodic boundaries you can choose a finite difference method instead.
 
-## Finite–difference schemes
+## Finite difference methods
 
-For non‑periodic domains or problems where you need boundary conditions
-explicitly enforced, FlexiPDE provides a **finite–difference** discretizer.
-Central differences of second order are implemented for the gradient and
-Laplacian operators.  Higher–order stencils can be added easily by
-subclassing the base discretizer.
+For non‑periodic domains, flexipde offers a simple finite difference backend, :class:`flexipde.discretisation.FiniteDifference`.  It uses central differences of second order in the interior and one‑sided differences at boundaries.  The spacing \(\Delta x\) is determined from the grid coordinates.  Higher‑order schemes (e.g. fourth‑order central differences) and advanced finite volume methods (e.g. WENO) can be added by implementing new differentiator classes.
 
-Given a uniform grid $x\_j$ with spacing $h$, the second–order central
-difference approximation to the first derivative is
+## Metrics and curvilinear coordinates
 
-\[\frac{\partial u}{\partial x}(x\_j) \approx \frac{u\_{j+1} - u\_{j-1}}{2h},\]
+To solve equations in curvilinear coordinates (e.g. cylindrical or spherical), provide the scale factors as the `metric` argument to the :class:`flexipde.grid.Grid`.  Each metric component multiplies the derivative operator; for example, in cylindrical coordinates the Laplacian of a scalar \(u(r,\theta,z)\) can be written
 
-and the one–dimensional Laplacian is
+\[\nabla^2 u = \frac{1}{r} \partial_r(r \partial_r u) + \frac{1}{r^2} \partial_{\theta\theta} u + \partial_{zz} u.\]
 
-\[\frac{\partial^2 u}{\partial x^2}(x\_j) \approx \frac{u\_{j+1} - 2u\_{j} + u\_{j-1}}{h^2}.\]
+The grid and differentiator handle these factors automatically.  See the cylindrical diffusion example in the documentation for a working case.
 
-At boundaries, one–sided differences are used according to the specified
-boundary condition (Dirichlet, Neumann or periodic).  The finite difference
-discretizer works for multidimensional problems by applying the stencil along
-each axis in turn.  It supports curvilinear coordinates by taking metric
-factors into account when computing derivatives and the Laplacian.
+## Adding new methods
 
-## Custom discretizers
-
-You can implement your own discretization by subclassing
-`flexipde.discretisation.BaseDifferentiator` and implementing the
-`grad`, `divergence` and `laplacian` methods.  See the existing
-`SpectralDifferentiator` and `FiniteDifference` classes for reference.
+To implement a new discretisation, subclass :class:`flexipde.discretisation.BaseDifferentiator` and implement the `grad`, `divergence` and `laplacian` methods.  The :class:`flexipde.grid.Grid` supplies coordinate arrays and metric factors.  Once implemented, your differentiator can be used interchangeably with the built‑in ones.

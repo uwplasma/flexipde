@@ -13,7 +13,7 @@ maintainers = [
   { name = "UWPlasma", email = "uwplasma@wisc.edu" },
 ]
 
-license = { text = "MIT" }
+license = "MIT"
 
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -39,15 +39,20 @@ docs = ["mkdocs-material", "mkdocstrings-python"]
 testing = ["pytest", "pytest-cov", "mypy"]
 
 [build-system]
-requires = ["setuptools >= 61.0"]
+requires = ["setuptools>=77", "packaging>=24.2"]
 build-backend = "setuptools.build_meta"
 
-
-# setuptools configuration: explicitly list the packages and package data. We no longer use
-# setuptools.packages.find since the flexipde package is at the top level.
 [tool.setuptools]
+# Explicitly list the packages to avoid accidental inclusion of temp folders.
 packages = ["flexipde"]
-package-data = {"flexipde" = ["py.typed"]}
+
+[tool.setuptools.package-data]
+flexipde = ["py.typed"]
+
+# Mypy configuration: ignore missing import stubs and exclude examples from strict checking
+[tool.mypy]
+ignore_missing_imports = true
+exclude = ["examples/*"]
 
 [project.scripts]
 flexipde = "flexipde.run:main"

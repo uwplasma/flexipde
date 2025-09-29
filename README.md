@@ -11,7 +11,7 @@
 
 - **Unified grid and coordinate system:** Create structured grids in 1D, 2D or 3D, including cylindrical coordinate systems with arbitrary metrics.
 - **Multiple discretisation methods:** Choose between Fourier spectral methods for periodic domains and finite difference methods for general boundaries.  Additional schemes (e.g. finite volume/WENO) can be added easily.
-    - **Built‑in models:** Includes linear advection, diffusion, ideal and resistive MHD, two‑fluid plasmas, drift–kinetic equations and a Vlasov–Poisson solver for the two–stream instability.  Additional models can be implemented by subclassing a base class.
+- **Built‑in models:** Includes linear advection, diffusion, ideal Alfvén waves, resistive MHD, two‑fluid plasmas, drift‑kinetic equations and a Vlasov–Poisson solver.  Additional models can be implemented by subclassing a base class.
 - **Custom equations:** Write your own PDEs without modifying the library—see the Burgers and Hasegawa–Wakatani examples.
 - **JAX acceleration and differentiability:** When JAX is installed, simulations are JIT‑compiled and run on GPU/TPU.  You can compute gradients of objectives with respect to simulation parameters and plug them into optimisation routines (via Optax).
 - **CLI and configuration files:** Run simulations from the command line using TOML configuration files.  You can specify the filename without the `.toml` suffix for convenience.
@@ -34,7 +34,20 @@ cd flexipde
 pip install -e .[jax,testing,docs]
 ```
 
-## Quick start
+## Models
+
+The library comes with several built‑in models:
+
+- **LinearAdvection:** Advection of a scalar field with constant velocity.  You can supply a velocity vector of arbitrary dimension.
+- **Diffusion:** Heat equation with configurable diffusivity.
+- **IdealAlfvén:** A toy model of shear Alfvén waves in 1D with two fields (velocity and magnetic field).
+- **ResistiveMHD:** A simplified resistive magnetohydrodynamics system with transverse velocity and magnetic field and resistivity parameter.
+- **TwoFluid:** Ion and electron densities advect independently with prescribed velocity vectors.
+- **DriftKinetic:** A drift–kinetic equation in 1D phase space (x,v) with a constant electric field.
+- **VlasovTwoStream:** A 1D Vlasov–Poisson solver modelling the two‑stream instability with Maxwellian streams.  You can adjust the number of velocity grid points and thermal velocities.
+- **Custom models:** You can implement arbitrary PDE systems by subclassing :class:`flexipde.models.base.PDEModel` or by writing a simple Python function in a driver script.  See the Hasegawa–Wakatani and Burgers examples for guidance.
+
+## Features
 
 Run a 1D diffusion simulation from a TOML file:
 

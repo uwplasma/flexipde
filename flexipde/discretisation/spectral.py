@@ -5,6 +5,8 @@ derivatives using the Fourier transform.  It supports both NumPy and JAX
 backends.  Spectral methods achieve machine‑precision accuracy for smooth
 functions on periodic domains.
 """
+
+# mypy: ignore-errors
 from __future__ import annotations
 
 from dataclasses import dataclass

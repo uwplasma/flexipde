@@ -1,4 +1,4 @@
-r"""Ideal Alfvén wave model.
+"""Ideal Alfvén wave model.
 
 This is a toy model for the propagation of shear Alfvén waves in one
 dimension.  It evolves transverse velocity ``v`` and magnetic field ``B``
@@ -31,6 +31,9 @@ class IdealAlfven(PDEModel):
     diff:
         The spatial discretiser.
     """
+
+    # Optional constant background field B0 for extensibility.
+    B0: float = 1.0
 
     def __post_init__(self) -> None:
         self.field_names = ["v", "B"]

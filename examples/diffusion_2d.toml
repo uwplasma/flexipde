@@ -1,16 +1,20 @@
 [grid]
-# Two‑dimensional square domain with Dirichlet boundaries
-domain = [(0.0, 1.0), (0.0, 1.0)]
-shape = [32, 32]
+dimensions = [[0.0, 1.0], [0.0, 1.0]]
+resolution = [64, 64]
 periodic = [false, false]
 
 [discretisation]
 type = "finite_difference"
-backend = "numpy"
 
 [model]
 type = "diffusion"
+[model.parameters]
 diffusivity = 0.1
 
+[simulation]
+t0 = 0.0
+t1 = 0.1
+dt0 = 0.001
+
 [initial_conditions]
-u = { type = "constant", value = 1.0 }
+u = { type = "gaussian", amplitude = 1.0, center = [0.5, 0.5], width = 0.1 }

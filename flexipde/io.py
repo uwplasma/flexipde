@@ -60,8 +60,15 @@ def build_simulation(cfg: Dict[str, Any] | str) -> Simulation:
         cfg = load_toml(cfg)
     # Grid
     gcfg = cfg.get("grid", {})
-    domain = [(float(a), float(b)) for a, b in gcfg.get("domain", [])]
-    shape = [int(n) for n in gcfg.get("shape", [])]
+    # Support both legacy keys (domain, shape) and new keys (dimensions, resolution)
+    if "dimensions" in gcfg:
+        domain = [(float(a), float(b)) for a, b in gcfg.get("dimensions", [])]
+    else:
+        domain = [(float(a), float(b)) for a, b in gcfg.get("domain", [])]
+    if "resolution" in gcfg:
+        shape = [int(n) for n in gcfg.get("resolution", [])]
+    else:
+        shape = [int(n) for n in gcfg.get("shape", [])]
     periodic = [bool(p) for p in gcfg.get("periodic", [])]
     grid = Grid.regular(domain, shape, periodic)
     # Discretisation
@@ -77,12 +84,7 @@ def build_simulation(cfg: Dict[str, Any] | str) -> Simulation:
     # Model
     mcfg = cfg.get("model", {})
     mtype = mcfg.get("type", "advection").lower()
-    # Extract model parameters: support both a nested ``parameters`` table and
-    # parameters specified at the top level of the ``model`` section.
-    mparams = dict(mcfg)
-    mparams.pop("type", None)
-    # If a [model.parameters] table was provided, update with its contents
-    mparams.update(mcfg.get("parameters", {}))
+    mparams = mcfg.get("parameters", {})
     if mtype in {"advection", "linearadvection"}:
         model = LinearAdvection(grid, diff, velocity=mparams.get("velocity", [1.0] * grid.ndim))
     elif mtype in {"diffusion"}:
@@ -100,7 +102,8 @@ def build_simulation(cfg: Dict[str, Any] | str) -> Simulation:
                              v_max=float(mparams.get("v_max", 5.0)),
                              E=float(mparams.get("E", 0.0)))
     elif mtype in {"alfven", "ideal_alfven"}:
-        model = IdealAlfven(grid, diff)
+        # Optional B0 parameter for ideal Alfvén model
+        model = IdealAlfven(grid, diff, B0=float(mparams.get("B0", 1.0)))
     elif mtype in {"vlasov", "vlasov_two_stream", "two_stream"}:
         model = VlasovTwoStream(
             grid, diff,

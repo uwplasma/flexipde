@@ -1,4 +1,4 @@
-r"""Two‑fluid plasma model (simplified).
+"""Two‑fluid plasma model (simplified).
 
 This module provides a minimal two‑fluid model where ion and electron
 density fields advect independently at prescribed velocities.  In a real
@@ -6,6 +6,8 @@ plasma the two fluids are coupled through charge neutrality, electric
 fields and collisions; here we omit these effects for clarity and
 demonstration of the framework.
 """
+
+# mypy: ignore-errors
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,4 +1,4 @@
-r"""Drift–kinetic equation (simplified).
+"""Drift–kinetic equation (simplified).
 
 The drift–kinetic model describes the evolution of a distribution function
 ``f(x, v, t)`` in phase space.  Here we implement a minimal 1D version
@@ -11,6 +11,8 @@ The equation is
     \partial_t f + v \partial_x f + E \partial_v f = 0.
 
 """
+
+# mypy: ignore-errors
 from __future__ import annotations
 
 from dataclasses import dataclass

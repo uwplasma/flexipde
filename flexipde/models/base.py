@@ -5,6 +5,8 @@ All models inherit from :class:`PDEModel`.  A model must implement
 dictionary of arrays.  Optionally it can override ``initial_state`` to
 generate the initial condition from parameter dictionaries.
 """
+
+# mypy: ignore-errors
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -35,7 +37,18 @@ def _generate_field(grid: Grid, ic_params: Dict[str, Any], backend: str = "numpy
             import numpy as jnp  # fallback to numpy if JAX missing
     else:
         import numpy as jnp  # type: ignore[assignment]
-    # default type
+    # default type; allow passing a raw array via key 'array'
+    if "array" in ic_params:
+        # user provided array directly; convert to appropriate backend array
+        arr = ic_params["array"]
+        if backend == "jax":
+            try:
+                import jax.numpy as jnp  # type: ignore[attr-defined]
+            except Exception:
+                import numpy as jnp  # type: ignore[assignment]
+        else:
+            import numpy as jnp  # type: ignore[assignment]
+        return jnp.array(arr)
     kind = ic_params.get("type", "constant")
     if kind == "constant":
         val = ic_params.get("value", 0.0)

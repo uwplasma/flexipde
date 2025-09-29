@@ -1,4 +1,4 @@
-r"""Diffusion equation.
+"""Diffusion equation.
 
 The diffusion model evolves a scalar field ``u`` according to
 

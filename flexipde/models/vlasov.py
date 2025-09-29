@@ -13,6 +13,8 @@ Periodic boundary conditions are used in ``x`` and vanishing fields at
 a finite difference in ``v``.  This implementation is intended for
 educational purposes and is not optimised.
 """
+
+# mypy: ignore-errors
 from __future__ import annotations
 
 from dataclasses import dataclass

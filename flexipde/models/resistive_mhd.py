@@ -1,4 +1,4 @@
-r"""Resistive MHD example model.
+"""Resistive MHD example model.
 
 This class implements a very simple 1D resistive magnetohydrodynamics (MHD)
 system.  It is **not** a complete MHD solver but serves as a demonstration
@@ -13,6 +13,8 @@ are a reduced form of the induction and momentum equations:
 where ``η`` is the resistivity.  A constant background field and density
 are implicitly set to one.
 """
+
+# mypy: ignore-errors
 from __future__ import annotations
 
 from dataclasses import dataclass

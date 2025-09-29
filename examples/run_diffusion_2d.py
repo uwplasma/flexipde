@@ -1,12 +1,13 @@
-"""Example: 2D diffusion on a square domain.
+"""Example: 2D diffusion equation.
 
-This script runs a two–dimensional diffusion equation with Dirichlet
-boundaries on a unit square.  The finite–difference discretisation is used.
+This script solves the diffusion equation on a 2D square with
+non‑periodic (Dirichlet) boundaries using the finite difference
+discretisation.  The initial condition is a Gaussian bump at the
+centre of the domain.  The script plots the initial and final
+temperature fields.
 """
-from __future__ import annotations
-
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 
 from flexipde.grid import Grid
 from flexipde.discretisation import FiniteDifference
@@ -15,25 +16,33 @@ from flexipde.solver import Simulation
 
 
 def main() -> None:
-    grid = Grid.regular([(0.0, 1.0), (0.0, 1.0)], [32, 32], [False, False])
-    diff = FiniteDifference(grid, backend="numpy")
+    # 2D domain [0,1]x[0,1]
+    grid = Grid.regular([(0.0, 1.0), (0.0, 1.0)], [64, 64], [False, False])
+    diff = FiniteDifference(grid)
     model = Diffusion(grid, diff, diffusivity=0.1)
-    ic = {"u": {"type": "constant", "value": 1.0}}
-    sim = Simulation(model, t0=0.0, t1=0.5, dt0=0.01, save_every=10, initial_state_params=ic)
+    sim = Simulation(model, t0=0.0, t1=0.1, dt0=0.001)
+    sim.initial_state_params = {
+        "u": {
+            "type": "gaussian",
+            "amplitude": 1.0,
+            "center": [0.5, 0.5],
+            "width": 0.1,
+        }
+    }
     result = sim.run()
     u0 = result.states[0]["u"]
-    u_end = result.states[-1]["u"]
+    u1 = result.states[-1]["u"]
     x = grid.coords[0]
     y = grid.coords[1]
     X, Y = np.meshgrid(x, y, indexing='ij')
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    im0 = axes[0].imshow(u0.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), aspect='auto')
-    fig.colorbar(im0, ax=axes[0])
-    axes[0].set_title("Initial u")
-    im1 = axes[1].imshow(u_end.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), aspect='auto')
-    fig.colorbar(im1, ax=axes[1])
-    axes[1].set_title("Final u")
-    plt.tight_layout()
+    fig, axs = plt.subplots(1, 2, figsize=(10, 4))
+    im0 = axs[0].imshow(u0, extent=(0, 1, 0, 1), origin='lower')
+    axs[0].set_title("Initial u")
+    fig.colorbar(im0, ax=axs[0])
+    im1 = axs[1].imshow(u1, extent=(0, 1, 0, 1), origin='lower')
+    axs[1].set_title("Final u")
+    fig.colorbar(im1, ax=axs[1])
+    plt.suptitle("2D Diffusion")
     plt.show()
 
 

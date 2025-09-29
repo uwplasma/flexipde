@@ -1,15 +1,13 @@
-"""Example: Vlasov two–stream instability simulation.
+"""Example: two‑stream instability.
 
-This script runs a one–dimensional Vlasov–Poisson system with two drifting
-beams (two–stream instability).  The initial distribution consists of a
-superposition of two shifted Maxwellians plus a small sinusoidal perturbation.
-We compute the time evolution and plot the spatial density at the final
-time.
+This driver sets up the 1D Vlasov–Poisson two‑stream instability
+simulation using the built‑in Vlasov model.  Because the Vlasov
+equation is high‑dimensional, the script does not plot the full phase
+space distribution but instead shows the density (velocity integral)
+and electric field at the final time.
 """
-from __future__ import annotations
-
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 
 from flexipde.grid import Grid
 from flexipde.discretisation import SpectralDifferentiator
@@ -18,28 +16,31 @@ from flexipde.solver import Simulation
 
 
 def main() -> None:
-    grid = Grid.regular([(0.0, 2.0 * np.pi)], [32], [True])
-    diff = SpectralDifferentiator(grid, backend="numpy")
-    model = VlasovTwoStream(grid, diff, nv=64, v_min=-5.0, v_max=5.0)
-    ic = {
-        "f": {
-            "amplitude": 0.05,
-            "drift_velocity": 1.0,
-            "thermal_velocity": 1.0,
-            "background_density": 1.0,
-        }
-    }
-    sim = Simulation(model, t0=0.0, t1=1.0, dt0=0.05, save_every=5, initial_state_params=ic)
+    grid = Grid.regular([(0.0, 2 * np.pi)], [64], [True])
+    diff = SpectralDifferentiator(grid)
+    model = VlasovTwoStream(
+        grid,
+        diff,
+        nv=64,
+        v_min=-5.0,
+        v_max=5.0,
+        amplitude=0.05,
+        drift_velocity=2.0,
+        thermal_velocity=0.5,
+        background_density=0.5,
+    )
+    sim = Simulation(model, t0=0.0, t1=2.0, dt0=0.1)
+    # no additional initial state parameters; the model sets up its own initial distribution
     result = sim.run()
-    # compute spatial density rho(x) = \int f dv at final time
-    f_end = result.states[-1]["f"]
-    dv = (model.v_max - model.v_min) / model.nv
-    rho = np.sum(f_end, axis=1) * dv
+    f_final = result.states[-1]["f"]  # shape (nx, nv)
+    # compute density by integrating over velocity axis
+    rho = np.trapz(f_final, axis=1)
     x = grid.coords[0]
+    plt.figure()
     plt.plot(x, rho)
     plt.xlabel("x")
-    plt.ylabel("Density ρ")
-    plt.title("Two–stream instability: final density")
+    plt.ylabel("density")
+    plt.title("Two‑stream instability final density")
     plt.show()
 
 

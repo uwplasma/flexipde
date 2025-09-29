@@ -1,31 +1,29 @@
-# Hasegawa–Wakatani system
+---
+title: Hasegawa–Wakatani model
+---
 
-The **Hasegawa–Wakatani** (HW) model describes resistive drift–wave
-turbulence in magnetised plasmas.  It couples the electron density
-fluctuation $n$ to the electrostatic potential $\phi$ via a modified
-continuity equation and a vorticity equation:
+# Hasegawa–Wakatani model
 
-\[
-\begin{aligned}
-\frac{\partial n}{\partial t} + [\phi,n] &= -\kappa \frac{\partial \phi}{\partial y} - \alpha (\phi - n),\\
-\frac{\partial \nabla^2 \phi}{\partial t} + [\phi, \nabla^2 \phi] &= -\alpha (\phi - n),
-\end{aligned}
-\]
+The Hasegawa–Wakatani (HW) system is a reduced model of drift–wave turbulence in magnetised plasmas.  It couples the density perturbation $n$ and electrostatic potential $\phi$ through advection and parallel diffusion【820049995294040†L22-L78】.  In two dimensions, ignoring curvature effects, the equations can be written as
 
-where $[f,g] = \partial\_x f \partial\_y g - \partial\_y f \partial\_x g$ is the
-canonical Poisson bracket, $\alpha$ is the adiabaticity parameter, and
-$\kappa$ sets the background density gradient.  In the limit $\alpha\to 0$
-the system reduces to the **Hasegawa–Mima** model, while $\alpha\to \infty$
-gives a simple drift–wave equation.
+$$
+\partial_t n + \{\phi,n\} + \alpha (\phi - n) = \kappa \partial_{y} \phi,
+$$
 
-FlexiPDE does not include a built–in HW model, but it is straightforward
-to implement it as a custom model in a few lines of code.  See
-`examples/run_hasegawa_wakatani.py` for an implementation that discretises
-the Poisson bracket with central differences and uses a spectral solver for
-the Laplacian.  The custom model inherits from the base `PDEModel` and
-implements its own `rhs` and `initial_state` methods.  The example also
-demonstrates how to visualise the density and potential after a short
-simulation.
+$$
+\partial_t \phi + \{\phi,\phi\} + \alpha (\phi - n) = \kappa \partial_{y} n,
+$$
 
-For more details on the Hasegawa–Wakatani system and its physical
-interpretation, see the notes by Ammar Hakim【820049995294040†L22-L78】.
+where $\{\cdot,\cdot\}$ denotes the Poisson bracket $\{f,g\}=\partial_x f\,\partial_y g - \partial_y f\,\partial_x g$, $\alpha$ measures the strength of parallel electron dynamics, and $\kappa$ drives diamagnetic drifts【820049995294040†L22-L78】.
+
+flexipde does not include the HW model as a built‑in class, but it is straightforward to implement it in a custom script.  See `examples/run_hasegawa_wakatani.py` for a working implementation that constructs a 2D grid, uses the spectral differentiator for derivatives, defines a `rhs` function computing the Poisson bracket and source terms, and integrates the equations in time.  Because the equations are non‑linear, you should use JAX and Diffrax for efficient integration and automatic differentiation.
+
+## Manufactured solution test
+
+To verify that the HW implementation is correct, you can use the method of manufactured solutions.  For example, choose
+
+$$
+n(x,y,t) = \cos(2x)\cos(3t), \quad \phi(x,y,t) = \sin(2y)\sin(3t).
+$$
+
+Substitute these into the HW equations to compute the required forcing terms, then implement the `rhs` function accordingly.  A test in `tests/test_manufactured.py` shows how to implement such checks for simpler models.

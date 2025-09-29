@@ -26,11 +26,11 @@ extra_javascript:
 nav:
   - Home: index.md
   - Installation: installation.md
-  - User Guide: user_guide.md
-  - Discretization: discretization.md
-  - Optimization: optimization.md
-  - Model Reference: models.md
-  - Two-Stream Instability: two_stream_instability.md
-  - Hasegawa–Wakatani: hasegawa_wakatani.md
+  - Discretisation: discretization.md
+  - User guide: user_guide.md
+  - Model reference: models.md
   - Examples: examples.md
+  - Optimisation: optimization.md
+  - Two‑stream instability: two_stream_instability.md
+  - Hasegawa–Wakatani: hasegawa_wakatani.md
   - API Reference: reference.md

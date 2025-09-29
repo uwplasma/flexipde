@@ -10,6 +10,10 @@ See the documentation for examples and derivations of the equations.
 
 from .base import PDEModel
 from .advection import LinearAdvection
+
+# Backwards compatibility alias.  The simpler name ``Advection`` can be used
+# instead of ``LinearAdvection`` in configuration files and examples.
+Advection = LinearAdvection
 from .diffusion import Diffusion
 from .resistive_mhd import ResistiveMHD
 from .two_fluid import TwoFluid
@@ -20,6 +24,7 @@ from .vlasov import VlasovTwoStream
 __all__ = [
     "PDEModel",
     "LinearAdvection",
+    "Advection",
     "Diffusion",
     "ResistiveMHD",
     "TwoFluid",

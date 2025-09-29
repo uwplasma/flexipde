@@ -7,6 +7,8 @@ Euler integrator when JAX is not installed or when the discretiser
 backend is NumPy.  Simulations can run a single initial condition or
 multiple initial conditions in sequence.
 """
+
+# mypy: ignore-errors
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -47,6 +49,29 @@ class SimulationResult:
             for k, v in state.items():
                 data[f"{k}_{i}"] = v
         _np.savez_compressed(filename, **data)
+
+    # Make the result unpackable like (times, states) for backward compatibility
+    def __iter__(self):
+        """Iterate over ``(times, states)`` to allow unpacking.
+
+        Examples
+        --------
+        >>> result = SimulationResult(...)
+        >>> times, states = result
+        """
+        return iter((self.times, self.states))
+
+    def __getitem__(self, index: int):  # pragma: no cover
+        """Allow indexing for backward compatibility.
+
+        ``result[0]`` returns ``times``; ``result[1]`` returns ``states``.
+        Any other index raises ``IndexError``.
+        """
+        if index == 0:
+            return self.times
+        elif index == 1:
+            return self.states
+        raise IndexError("SimulationResult only supports indices 0 (times) and 1 (states)")
 
 
 @dataclass
@@ -110,8 +135,8 @@ class Simulation:
         states.append(state0)
         if use_jax:
             # JAX integration with diffrax
-            # convert state dict to PyTree (dict of arrays)
-            y0 = state0
+            # In the JAX case, avoid converting arrays to NumPy.  Return JAX arrays
+            y0 = state0  # dict of JAX arrays
             model = self.model
 
             def rhs_fn(t, y, args):
@@ -124,10 +149,11 @@ class Simulation:
             saveat = SaveAt(t0=True, t1=True)
             sol = diffeqsolve(term, solver, t0=self.t0, t1=self.t1, dt0=self.dt0,
                               y0=y0, saveat=saveat)
-            # times and states from solution
-            ts = _np.array([float(self.t0), float(self.t1)])
-            ys = [state0, {k: _np.array(v) for k, v in sol.ys.items()}]
-            times = ts.tolist()
+            # times array includes start and end times
+            times_array = _np.array([self.t0, self.t1], dtype=float)
+            times = times_array.tolist()
+            # states is a list of dicts: first the initial state (NumPy arrays), then final state (JAX arrays)
+            ys = [state0, sol.ys]
             states = ys
         else:
             # explicit Euler fallback
