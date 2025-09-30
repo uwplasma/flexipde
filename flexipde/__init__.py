@@ -22,6 +22,11 @@ from .solver import Simulation, SimulationResult
 from .optim import simulate_and_grad, optimize_params
 from .io import build_simulation
 
+try:
+    from ._version import __version__  # written by setuptools-scm at build time / editable install
+except Exception:  # fallback if not present (very rare)
+    __version__ = "0+unknown"
+
 __all__ = [
     "Grid",
     "SpectralDifferentiator",

@@ -1,6 +1,6 @@
 [project]
 name = "flexipde"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Flexible high‑performance plasma physics solver in Python using JAX and NumPy"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,8 @@ maintainers = [
   { name = "UWPlasma", email = "uwplasma@wisc.edu" },
 ]
 
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -38,12 +39,19 @@ docs = ["mkdocs-material", "mkdocstrings-python"]
 testing = ["pytest", "pytest-cov", "mypy"]
 
 [build-system]
-requires = ["setuptools >= 61.0", "wheel"]
+requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["flexipde*"]
+
+[tool.setuptools_scm]
+tag_regex = '^v(?P<version>\d+\.\d+\.\d+(?:[a-zA-Z0-9\.-]+)?)$'
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+write_to = "flexipde/_version.py"
+write_to_template = "__version__ = \"{version}\"\n"
 
 [tool.setuptools.package-data]
 flexipde = ["py.typed"]
