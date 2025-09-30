@@ -5,7 +5,7 @@
 [![PyPI version](https://badge.fury.io/py/flexipde.svg)](https://pypi.org/project/flexipde)
 [![codecov](https://codecov.io/gh/uwplasma/flexipde/branch/main/graph/badge.svg)](https://codecov.io/gh/uwplasma/flexipde)
 
-**flexipde** is a flexible, high‑performance library for solving plasma physics equations in any number of dimensions.  It combines the ease of writing Python with the speed of modern array libraries like NumPy and JAX.  The library draws inspiration from—and goes beyond—established simulation frameworks such as **BOUT++** for fluid plasmas and **Gkeyll** for kinetic models【635715314594784†L14-L33】.  Instead of low‑level C++ or Fortran, you write concise Python code that can automatically run on CPUs or GPUs via JAX, and you can differentiate simulations with respect to parameters to enable optimisation or machine‑learning pipelines.
+**flexipde** is a flexible, high‑performance library for solving plasma physics equations in any number of dimensions.  It combines the ease of writing Python with the speed of modern array libraries like NumPy and JAX.  The library draws inspiration from—and goes beyond—established simulation frameworks to have a performant, simple to use and flexible library.  Instead of low‑level C++ or Fortran, you write concise Python code that can automatically run on CPUs or GPUs via JAX, and you can differentiate simulations with respect to parameters to enable optimisation or machine‑learning pipelines.
 
 ## Features
 
